@@ -4,6 +4,7 @@ from core.grid import *
 from bssn.bssnstatevariables import *
 from bssn.bssnvars import *
 from bssn.tensoralgebra import *
+from bssn.gaussbonnet import * #compute_L_GB
 
 class ScalarMatter :
     """Represents the matter that sources the Einstein equation."""
@@ -79,23 +80,6 @@ class ScalarMatter :
         em4phi = np.exp(-4.0*bssn_vars.phi)    
         bar_gamma_UU = get_bar_gamma_UU(r, bssn_vars.h_LL, background)
         
-###########################################################################################################################
-#GAUS BONNET LAGRANGIAN
-        #Lamda_GB = coeff_GB*self.u
-        #dLambda_GB = coeff_GB
-
-
-        #M = 
-        #TraceM = 
-
-
-        #L_GB = 
-
-
-
-
-###########################################################################################################################
-#MODIFICATION FOR SCALAR GAUS BONNET PART (extra term to dvdt)
 
         dudt =  bssn_vars.lapse * self.v #this is just lapse times first derivative of phi (=v)
         dvdt =  (bssn_vars.lapse * bssn_vars.K * self.v 
@@ -104,13 +88,20 @@ class ScalarMatter :
                  +                         em4phi * np.einsum('xij,xi,xj->x', bar_gamma_UU, bssn_d1.lapse, self.d1_u)
                  -       bssn_vars.lapse * em4phi * np.einsum('xij,xkij,xk->x', bar_gamma_UU, bar_chris, self.d1_u))
 
-###########################################################################################################################
         # Add mass term
         dvdt += - bssn_vars.lapse * self.dVdu(self.u)
         
         # Now advection
         dudt   += np.einsum('xj,xj->x', background.inverse_scaling_vector * bssn_vars.shift_U,   self.advec_u)
         dvdt   += np.einsum('xj,xj->x', background.inverse_scaling_vector * bssn_vars.shift_U,   self.advec_v)
+
+        ########################################################################################################
+        #MODIFICATION FOR SCALAR GAUS BONNET PART (extra term to dvdt)
+
+        #L_GB = compute_L_GB(bssn_vars, d1, d2, rhs_dict, grid, background)
+        #dvdt   += 
+
+        ########################################################################################################
         
         return dudt, dvdt
     
