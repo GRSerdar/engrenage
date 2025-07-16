@@ -82,7 +82,7 @@ def get_bssn_rhs(bssn_rhs, r, bssn_vars, d1, d2, background, emtensor) :
     ####################################################################################################    
     # K is the trace of the extrinsic curvature 
     # that is K_ij = A_ij + 1/3 \gamma_ij K
-    
+   
     # Calculate \bar D^k \bar D_k lapse
     bar_D2_lapse = (np.einsum('xij,xij->x', bar_gamma_UU, d2.lapse)
                   - np.einsum('xij,xkij,xk->x', bar_gamma_UU, bar_chris, d1.lapse))

@@ -4,7 +4,7 @@ from core.grid import *
 from bssn.bssnstatevariables import *
 from bssn.bssnvars import *
 from bssn.tensoralgebra import *
-from bssn.gaussbonnet import * #compute_L_GB
+from bssn.gaussbonnet2 import * #compute_L_GB
 
 class ScalarMatter :
     """Represents the matter that sources the Einstein equation."""
