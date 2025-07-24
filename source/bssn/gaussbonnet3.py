@@ -37,9 +37,15 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, matter, grid, background):
     # Metric and extrinsic curvature tensors
     bar_gamma_LL = get_bar_gamma_LL(r, bssn_vars.h_LL, background)
     bar_gamma_UU = get_bar_gamma_UU(r, bssn_vars.h_LL, background)
+
     gamma_LL = chii * bar_gamma_LL  # Physical 
     gamma_UU = chii * bar_gamma_UU  # Inverse physical metric
-    bar_A_LL = get_bar_A_LL(r, bssn_vars, background)  
+
+    bar_A_LL = get_bar_A_LL(r, bssn_vars, background) 
+    bar_A_UU = get_bar_A_UU(r, bssn_vars, background)
+
+    A_LL = chii*bar_A_LL
+    A_UU = chii*bar_A_UU
 
     # Derivatives
     d1_phi = d1.phi  # Partial_i phi
@@ -48,56 +54,66 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, matter, grid, background):
     d1_lapse = d1.lapse  # Partial_i alpha
     d2_lapse = d2.lapse  # Partial_i partial_j alpha
     d1_A_LL = d1.a_LL  # Partial_k A_ij
-    #d1_A_UU = d1.bar_A_UU
 
     # Compute connections
     Delta_U, Delta_ULL, Delta_LLL = get_tensor_connections(r, bssn_vars.h_LL, d1.h_LL, background)
     bar_chris = get_bar_christoffel(r, Delta_ULL, background)
 
+    ################################################################################################################
     #  M_ij 
+    
     #Here i assumed that in LLiberts paper bar_ricci = tilde_ricci (which is true!!!)
+
+    #YOU NEED A TRANSFORMATIONS FROM BARRED RICCI TO NON BARRED RICCI!!!
     bar_Ricci = get_bar_ricci_tensor(r, bssn_vars.h_LL, d1.h_LL, d2.h_LL, bssn_vars.lambda_U, d1.lambda_U,
                                  Delta_U, Delta_ULL, Delta_LLL, bar_gamma_UU, bar_gamma_LL, background)
     
-    AikAkj = get_AikAkj(bar_A_LL, bar_gamma_UU)
+    # \bar A_ik \bar A^k_j = gamma^kl A_ik A_jl
+    #AikAkj = get_AikAkj(bar_A_LL, bar_gamma_UU)
+    AikAkj = np.einsum('xkl,xik,xlj->xij', bar_gamma_UU, bar_A_LL, bar_A_LL)
 
     M_LL = (bar_Ricci 
             + chii * two_nine * bar_gamma_LL * K[:, np.newaxis, np.newaxis] * K[:, np.newaxis, np.newaxis]
             + chii * one_third * K[:, np.newaxis, np.newaxis] * bar_A_LL
             - AikAkj)
-    
     trace_M = get_trace(M_LL, gamma_UU)
+    ################################################################################################################
 
-    #  N_i  
-    bar_div_A_L = np.einsum('xjik->xi', d1_A_LL) - np.einsum('xkjl,xlk->xj', bar_chris, bar_A_LL)
+
+    ################################################################################################################
+    #  N_i 
+    #\bar{D}_i \bar{A}_i^j = \bar{\gamma}^{kj}*(\partial_j \bar{A}_{ik} - \bar{\Gamma}^{l}_{ji}\bar{A}_{lk} - \bar{\Gamma}^{l}_{jk}\bar{A}_il)
+    DjAij = (np.einsum('xkj,xjik->xi',bar_gamma_UU,d1_A_LL) 
+             - np.einsum('xkj,xlji,xlk-> xi' ,bar_gamma_UU, bar_chris, bar_A_LL)
+             - np.einsum('xkj,xljk,xil-> xi',bar_gamma_UU, bar_chris, bar_A_LL))
+    
     d1_chi = -4.0 * chi[:, np.newaxis] * d1_phi  # Partial_j chi
 
-    N_L = (bar_div_A_L
+    N_L = (DjAij
            - third_two* chii[:, np.newaxis]*d1_chi
            - two_thirds* d1_K)
+    ################################################################################################################
 
 
-    ####################################################################################################
-    ####################################################################################################
-    #COMPUTE L GB 
+    ################################################################################################################
+    # COMPUTE L GB 
     get_bssn_rhs(bssn_rhs, r, bssn_vars, d1, d2, background, emtensor)
 
-    ####################################################################################################
-    # LINE1
+    # ________________________________________________________________________________________________________________
+    # LINE 1
     # Compute laplacian of lapse first
     laplacian_alpha = (np.einsum('xij,xij->x', bar_gamma_UU, d2_lapse)
                         - np.einsum('xij,xkij,xk->x', bar_gamma_UU, bar_chris, d1_lapse))
-    
     # acces dKdt
     dKdt = bssn_rhs.K
     ilapse = 1/lapse
 
     line1_GB = -four_thirds*trace_M*(ilapse *dKdt
                                      + ilapse * laplacian_alpha
-                                     - AikAkj
+                                     - AikAkj #WRONG THIS SHOULD BE A_{ij}A^{ij}
                                      - one_third * K * K)
-    ####################################################################################################
-    # LINE2
+    # ________________________________________________________________________________________________________________
+    # LINE 2
 
     #Raising the indices
     M_UU = np.einsum('xik,xjl,xij->xkl', gamma_UU, gamma_UU, M_LL)
@@ -123,8 +139,8 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, matter, grid, background):
                                           - two_thirds*K*bar_A_LL
                                           + two_thirds*ilapse*div_shift*bar_A_LL))
     
-    ####################################################################################################
-    #LINE3
+    # ________________________________________________________________________________________________________________
+    # LINE 3
 
     #[D^i A^jk - D^j A^ik]
     

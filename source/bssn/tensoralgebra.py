@@ -294,6 +294,7 @@ def get_AikAkj(bar_A_LL, bar_gamma_UU):
 
     return np.einsum('xkl,xik,xlj->xij', bar_gamma_UU, bar_A_LL, bar_A_LL)
 
+
 def get_AkjAjl(bar_A_LL, bar_gamma_UU):
 
     return np.einsum('xkj,xjz,xzl->xkl', bar_A_LL, bar_gamma_UU, bar_A_LL)

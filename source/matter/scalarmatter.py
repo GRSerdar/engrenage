@@ -81,7 +81,7 @@ class ScalarMatter :
         bar_gamma_UU = get_bar_gamma_UU(r, bssn_vars.h_LL, background)
         
 
-        dudt =  bssn_vars.lapse * self.v #this is just lapse times first derivative of phi (=v)
+        dudt =  bssn_vars.lapse * self.v #this is just lapse times first derivative of dphi/dt (=v)
         dvdt =  (bssn_vars.lapse * bssn_vars.K * self.v 
                  + 2.0 * bssn_vars.lapse * em4phi * np.einsum('xij,xi,xj->x', bar_gamma_UU, bssn_d1.phi, self.d1_u)
                  +       bssn_vars.lapse * em4phi * np.einsum('xij,xij->x', bar_gamma_UU, self.d2_u)
@@ -97,10 +97,14 @@ class ScalarMatter :
 
         ########################################################################################################
         #MODIFICATION FOR SCALAR GAUS BONNET PART (extra term to dvdt)
+        '''
+        bssn_rhs = BSSNVars(N)
+        d1 = grid.get_d1_metric_quantities(unflattened_state)
+        d2 = grid.get_d2_metric_quantities(unflattened_state)
 
-        #L_GB = compute_L_GB(bssn_vars, d1, d2, rhs_dict, grid, background)
-        #dvdt   += 
-
+        L_GB = compute_L_GB(bssn_vars, bssn_rhs, d1, d2, matter, grid, background)
+        dvdt   += 
+        '''
         ########################################################################################################
         
         return dudt, dvdt
