@@ -61,18 +61,18 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, matter, grid, background):
 
     ################################################################################################################
     #  M_ij 
-    
-    #Here i assumed that in LLiberts paper bar_ricci = tilde_ricci (which is true!!!)
-
-    #YOU NEED A TRANSFORMATIONS FROM BARRED RICCI TO NON BARRED RICCI!!!
-    bar_Ricci = get_bar_ricci_tensor(r, bssn_vars.h_LL, d1.h_LL, d2.h_LL, bssn_vars.lambda_U, d1.lambda_U,
+    bar_Ricci_LL = get_bar_ricci_tensor(r, bssn_vars.h_LL, d1.h_LL, d2.h_LL, bssn_vars.lambda_U, d1.lambda_U,
                                  Delta_U, Delta_ULL, Delta_LLL, bar_gamma_UU, bar_gamma_LL, background)
+    
+    #We transform the barred Ricci tensor to the non barred ricci
+    Ricci_LL = 
+
     
     # \bar A_ik \bar A^k_j = gamma^kl A_ik A_jl
     #AikAkj = get_AikAkj(bar_A_LL, bar_gamma_UU)
     AikAkj = np.einsum('xkl,xik,xlj->xij', bar_gamma_UU, bar_A_LL, bar_A_LL)
 
-    M_LL = (bar_Ricci 
+    M_LL = (Ricci 
             + chii * two_nine * bar_gamma_LL * K[:, np.newaxis, np.newaxis] * K[:, np.newaxis, np.newaxis]
             + chii * one_third * K[:, np.newaxis, np.newaxis] * bar_A_LL
             - AikAkj)

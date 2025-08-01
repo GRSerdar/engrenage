@@ -2,79 +2,180 @@ import numpy as np
 
 from core.grid import Grid
 from bssn.tensoralgebra import *
+from bssn.bssnvars import *
 
+# Constants for tensor algebra
 one_sixth = 1.0/6.0
 one_third = 1.0/3.0
 two_thirds = 2.0/3.0
 four_thirds = 4.0/3.0
 two_nine = 2.0/9.0
+third_two = 3.0/2.0
 
-
-def compute_L_GB(bssn_vars, d1, d2, rhs_dict, grid, background):
+def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, matter, grid, background):
+    """
+    Some extremely discriptive comment
+    """
     r = grid.r
     N = grid.num_points
 
-    # Variables and quantities
-    K = bssn_vars.K                        # trace of extrinsic curvature
-    bar_A_LL = get_bar_A_LL(r, bssn_vars, background)  # A_ij
-    bar_A_UU = get_bar_A_UU(r, bssn_vars, background)  # A^ij
+    #BSSN variables
+    K = bssn_vars.K  # Trace of extrinsic curvature
+    phi = bssn_vars.phi  # Conformal factor (this is consistent with the pdf)
+    em4phi = np.exp(-4.0*bssn_vars.phi) 
+    e4phi = 1/em4phi
+    lapse = bssn_vars.lapse  # Lapse function
+    ilapse = 1/lapse
+
+    shift_U = bssn_vars.shift_U #scaled shift
+    Shift_U = background.inverse_scaling_vector * bssn_vars.shift_U #Captial Shift 
+
+    # Scalar field variables from matter 
+    u = matter.u  # Scalar field
+    d1_u = matter.d1_u  # First derivative of u
+    emtensor  = matter.get_emtensor(r, bssn_vars, background)
+
+    # Barred Metric and extrinsic curvature tensors
+    bar_gamma_LL = get_bar_gamma_LL(r, bssn_vars.h_LL, background)
     bar_gamma_UU = get_bar_gamma_UU(r, bssn_vars.h_LL, background)
 
-    # Derivatives
-    dK = d1.K                              # D_i K
-    d1_alpha = d1.lapse                    # D_i alpha
-    d2_alpha = d2.lapse                    # D_i D_j alpha
-    d1_A_LL = d1.a_LL                      # D_k A_ij
-    d2_A_LL = d2.a_LL                      # D_k D_l A_ij 
+    bar_A_LL = get_bar_A_LL(r, bssn_vars, background) 
+    bar_A_UU = get_bar_A_UU(r, bssn_vars, background)
 
-    # Lapse and conformal factor
-    alpha = bssn_vars.lapse
-    phi = bssn_vars.phi
-    chi = np.exp(-4.0 * phi)
-    chii = 1/chi #chii stands for chi inverse
+    #Derivative terms | notice that the derivative is only taken of the scaled variables.
+    d1_phi = d1.phi  # Partial_i phi
+    d2_phi = d2.phi  # Partial_i partial_j phi
+    d1_K = d1.K  # Partial_i K
+    d1_lapse = d1.lapse  # Partial_i alpha
+    d2_lapse = d2.lapse  # Partial_i partial_j alpha
 
-    # Get bar_R_ij (Ricci tensor)
-    bar_gamma_LL = get_bar_gamma_LL(r, bssn_vars.h_LL, background)
+    d1_Shift_U = (background.d1_inverse_scaling_vector * bssn_vars.shift_U[:,:,np.newaxis]  
+                     + d1.shift_U * background.inverse_scaling_vector[:,:,np.newaxis]) #partial_i Shift_U
+    d2_Shift_U = (np.einsum('xijk,xi->xijk', background.d2_inverse_scaling_vector, bssn_vars.shift_U)
+         + np.einsum('xik,xij->xijk', background.d1_inverse_scaling_vector, d1.shift_U)
+         + np.einsum('xij,xik->xijk', background.d1_inverse_scaling_vector, d1.shift_U)
+         + np.einsum('xi,xijk->xijk', background.inverse_scaling_vector, d2.shift_U) #partial_i partial_j Shift_U
+    )
+
+    ### Maybe these are not really needed
+    d1_a_LL = d1.a_LL  # Partial_k a_ij (derivative of the scaled \bar{A}_{ij})
+    d1_sij = background.d1_scaling_matrix
+    ### Maybe these are not really needed
+
+    s_times_d1_a = background.scaling_matrix[:,:,:,np.newaxis] * d1.a_LL
+    a_times_d1_s = bssn_vars.a_LL[:,:,:,np.newaxis] * background.d1_scaling_matrix
+
+    # Compute connections
     Delta_U, Delta_ULL, Delta_LLL = get_tensor_connections(r, bssn_vars.h_LL, d1.h_LL, background)
+    bar_chris = get_bar_christoffel(r, Delta_ULL, background) #\bar \christoffel (that you will use basicly everywhere)
+
+    #________________________________________________________________________________________
+    # Construction of Mij
+
+    #barred ricci
     bar_Rij = get_bar_ricci_tensor(r, bssn_vars.h_LL, d1.h_LL, d2.h_LL, bssn_vars.lambda_U, d1.lambda_U,
-                                   Delta_U, Delta_ULL, Delta_LLL, bar_gamma_UU, bar_gamma_LL, background)
+                                              Delta_U, Delta_ULL, Delta_LLL, 
+                                              bar_gamma_UU, bar_gamma_LL, background)
+
+    #Writing out the Ricci tensor in terms of the barred christoffel symbol (because it is a quantity that is already calculated)
+    Rij = (bar_Rij - 2*d2_phi
+           + 2*np.einsum('xlij,xl->xij', bar_chris, d1_phi)
+           - 2*np.einsum('xij,xlm,xlm->xij',bar_gamma_LL, bar_gamma_UU, d2_phi)
+           + 2*np.einsum('xij, xlm, xklm, xk->xij', bar_gamma_LL, bar_gamma_UU, bar_chris, d1_phi)
+           + 4*np.einsum('xi, xj->xij', d1_phi, d1_phi)
+           - 4*np.einsum('xij, xlm, xl, xm->xij', bar_gamma_LL, bar_gamma_UU, d1_phi, d1_phi)
+           )
     
-    #Define normal physical metric (up and down)
-    gamma_UU = chii*bar_gamma_UU
-    gamma_LL = chii*bar_gamma_LL
+    #\bar A_{ij} \bar A_j^k
+    AikAjk = np.einsum('xik, xkb, xjb->xij', bar_A_LL, bar_gamma_UU, bar_A_LL)
 
-    # Construction M_ij from Eq. (5) 
+    # Mij
+    M_LL = (Rij 
+           + e4phi*(two_nine*bar_gamma_LL*K*K
+                    + one_third*K*bar_A_LL
+                    - AikAjk))
+    #Trace M_ij
+    Trace_M = get_trace(M_LL, gamma_UU)
 
-    # \bar A_ik \bar A^k_j = gamma^kl A_ik A_jl
-    AikAkj = get_AikAkj(bar_A_LL, bar_gamma_UU)
+    #Trace Free M^{ij}
+    
+    #Trace Free:
+    TraceFree_M_LL = M_LL - one_third*bar_gamma_LL*Trace_M
+    
+    #Trace Free upper indices
+    TraceFree_M_UU = np.einsum('xik, xjl, xij->xkl',bar_gamma_UU, bar_gamma_UU, TraceFree_M_LL)
 
-    M_LL = (bar_Rij 
-            + chii*two_nine*bar_gamma_LL*K*K 
-            + chii*one_third*K*bar_A_LL 
-            - AikAkj)
+    #________________________________________________________________________________________
+    # Construction of N_i
 
-    trace_M = get_trace(M_LL, gamma_UU)
+    #\bar{D}_j \bar{A}_i^j
 
+    #Not too sure about the indices I wrote for the derivative in this term
+    bar_D_bar_A_LU = (np.einsum('xjb, xjib->xi',bar_gamma_UU, a_times_d1_s)
+                      + np.einsum('xjb, xjib->xi',bar_gamma_UU, s_times_d1_a)
+                      - np.einsum('xjb, xlji,xlb->xi', bar_gamma_UU, bar_chris, bar_A_LL)
+                      - np.einsum('xjb, xljb, xil->xi',bar_gamma_UU, bar_chris, bar_A_LL))
 
+    N_L = bar_D_bar_A_LU + 6*d1_phi - two_thirds* d1_K
 
+    #N_iN^i
+    Trace_N = np.einsum('xi, xia, xa->x', N_L, bar_gamma_UU,N_L)
+    #________________________________________________________________________________________
+    # Line 1
 
-    # Construction N_i from Eq. (6)
+    # The idea is to build the Gauss Bonnet term (which consists of 4 lines), line by line and 
+    # first construct all the objects needed in that line.
 
-    bar_chris = get_bar_christoffel(r, Delta_ULL, background)
+    dKdt = bssn_rhs.K
 
-    # Divergence of A: \tilde{D}_j \bar{A}_i^j = \partial_j \bar{A}_{ij} - \bar{\Gamma}^k_{ji} \bar{A}_{kj}
-    bar_div_A_L = np.einsum('xjik->xi', d1_A_LL) - np.einsum('xkjl,xlk->xj', bar_chris, bar_A_LL)
+    #D^iD_i \alpha
+    D2_lapse = (em4phi*(np.einsum('xia, xai->x',bar_gamma_UU, d2_lapse)
+                        - np.einsum('xia, xlai, xl->x', bar_gamma_UU, bar_chris, d1_lapse)
+                        + 2*np.einsum('xla, xa, xl->x', bar_gamma_UU, d1_phi, d1_lapse)))
+    
+    #\bar{A}_{ij} \bar{A}^{ij}
+    Asquared = get_bar_A_squared(r, bssn_vars, background)
 
-    # Gradient of chi from dphi: \partial_j \chi 
-    d1_chi = -4.0 * chi[:, np.newaxis] * d1.phi  # shape (N, 3)
+    line1 = (-four_thirds*Trace_M*(ilapse*dKdt + ilapse*D2_lapse - Asquared - one_third*K*K))
 
-    # Now assemble N_L = \tilde{D}_j \bar{A}_i^j - (3/2χ) ∂_j χ - (2/3) ∂_i K
-    N_L = (bar_div_A_L 
-        - (3.0 / (2.0 * chi[:, np.newaxis])) * d1_chi 
-        - (2.0 / 3.0) * dK)
+    #________________________________________________________________________________________
+    #Line 2
 
-    # Construction L^GB using expression in Eq. (4)
-    L_GB = np.zeros(N)
+    dadt = bssn_rhs.a_LL
+
+    #Term 5
+    bar_A_LL_d_Shift_U_symmetric = (np.einsum('xjk, xlj->xkl',bar_A_LL,d1_Shift_U)
+                                    - np.einsum('xjl, xkj->xlk'))
+
+    #Term 6
+    DkDl_lapse = (d2_lapse
+                  - np.einsum('xwkl,xw->xkl',bar_chris, d1_lapse)
+                  - 2*np.einsum('xl, xk->xlk', d1_phi , d1_lapse) 
+                  - 2*np.einsum('xk, xl->xkl', d1_phi , d1_lapse) #does it matter in which order -> xkl or ->xlk ? | shouldn't cuz resulting object prob symmetric anyway
+                  + 2*np.einsum('xkl, xwd, xd, xw->xkl',bar_gamma_LL, bar_gamma_UU, d1_phi, d1_lapse))
+
+    line2 = 8*TraceFree_M_UU*(ilapse*dadt + 2*ilapse*bar_A_LL_d_Shift_U_symmetric + ilapse*DkDl_lapse)
+    
+    #________________________________________________________________________________________
+    #Line 3
+
+    AkjAjl = np.einsum('xkj, xja, xal->xkl',bar_A_LL, bar_gamma_UU, bar_A_LL)
+
+    #probably will need to employ np.newaxis machinery
+    line3 = 8*TraceFree_M_UU*e4phi*(AkjAjl - two_thirds*K*bar_A_LL + two_thirds * ilapse* d1_Shift_U*bar_A_LL)
+    
+    #________________________________________________________________________________________
+    #Line 4
+
+    D_L_A_LL = (e4phi*(4*np.einsum('xi, xjk->xijk',d1_phi,bar_A_LL) + a_times_d1_s +s_times_d1_a
+                       - np.einsum('xlij, xlk-> xijk',bar_chris, bar_A_LL)
+                       - 2*np.einsum('xj, xik->xjik',d1_phi, bar_A_LL) 
+                       - 2*np.einsum('xi, xjk-> xijk',d1_phi, bar_A_LL)
+                       + 2*np.einsum('xij, xlw, xw, xjl-> xikj', bar_gamma_LL, bar_gamma_UU, d1_phi, bar_A_LL)))
+
+    D_U_A_UU = em4phi**3 *np.einsum('xjb, xkc, xia, xabc->xijk',bar_gamma_UU,bar_gamma_UU,bar_gamma_UU,bar_gamma_UU,D_L_A_LL)
+
+    #finish term 8 + last line!!!!
 
 
 

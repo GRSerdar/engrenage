@@ -98,13 +98,13 @@ def get_bar_gamma_LL(r, h_LL, background) :
     epsilon_LL = h_LL * background.scaling_matrix
     bar_gamma_LL = epsilon_LL + background.hat_gamma_LL
     
-    return bar_gamma_LL
+    return bar_gamm
 
 # Computer the rescaled spatial metric n_ij * \bar \gamma_ij given the rescaled perturbation h
 def get_rescaled_bar_gamma_LL(r, h_LL, background) :   
     
     r_bar_gamma_LL = h_LL + background.hat_gamma_LL * background.inverse_scaling_matrix
-    
+    # 
     return r_bar_gamma_LL
 
 # Compute inverse of the conformal spatial metric \bar\gamma^ij given the rescaled perturbation h
@@ -195,7 +195,7 @@ def get_bar_ricci_tensor(r, h_LL, d1_h_dx, d2_h_dxdy, lambda_U, d1_lambda_dx,
     hat_D_bar_Lambda_U = get_hat_D_bar_Lambda_U(r, lambda_U, d1_lambda_dx, background)
     # Get \bar\gamma^kl \hat D_k \hat D_l \bar\gamma_ij
     hat_D2_bar_gamma_LL = get_hat_D2_bar_gamma_LL(r, h_LL, d1_h_dx, d2_h_dxdy, background)
- 
+
     bar_ricci = (- 0.5 * hat_D2_bar_gamma_LL
              + 0.5 * np.einsum('xki,xkj->xij', bar_gamma_LL, hat_D_bar_Lambda_U)
              + 0.5 * np.einsum('xkj,xki->xij', bar_gamma_LL, hat_D_bar_Lambda_U)
