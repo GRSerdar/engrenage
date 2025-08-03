@@ -12,7 +12,7 @@ four_thirds = 4.0/3.0
 two_nine = 2.0/9.0
 third_two = 3.0/2.0
 
-def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, matter, grid, background):
+def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background): #Took ,matter , out of it since not used 
     """
     Some extremely discriptive comment
     """
@@ -30,10 +30,15 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, matter, grid, background):
     shift_U = bssn_vars.shift_U #scaled shift
     Shift_U = background.inverse_scaling_vector * bssn_vars.shift_U #Captial Shift 
 
+    ###############################################################
+    # Don't really need these
     # Scalar field variables from matter 
-    u = matter.u  # Scalar field
-    d1_u = matter.d1_u  # First derivative of u
-    emtensor  = matter.get_emtensor(r, bssn_vars, background)
+
+    # u = matter.u  # Scalar field
+    # d1_u = matter.d1_u  # First derivative of u
+    # emtensor  = matter.get_emtensor(r, bssn_vars, background)
+
+    ###############################################################
 
     # Barred Metric and extrinsic curvature tensors
     bar_gamma_LL = get_bar_gamma_LL(r, bssn_vars.h_LL, background)
@@ -58,8 +63,8 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, matter, grid, background):
     )
 
     ### Maybe these are not really needed
-    d1_a_LL = d1.a_LL  # Partial_k a_ij (derivative of the scaled \bar{A}_{ij})
-    d1_sij = background.d1_scaling_matrix
+    # d1_a_LL = d1.a_LL  # Partial_k a_ij (derivative of the scaled \bar{A}_{ij})
+    # d1_sij = background.d1_scaling_matrix
     ### Maybe these are not really needed
 
     s_times_d1_a = background.scaling_matrix[:,:,:,np.newaxis] * d1.a_LL
@@ -90,17 +95,18 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, matter, grid, background):
     AikAjk = np.einsum('xik, xkb, xjb->xij', bar_A_LL, bar_gamma_UU, bar_A_LL)
 
     # Mij
+
+    #Did i do the np.newaxis correctly???
     M_LL = (Rij 
-           + e4phi*(two_nine*bar_gamma_LL*K*K
-                    + one_third*K*bar_A_LL
+           + e4phi*(two_nine*bar_gamma_LL* K[:, np.newaxis, np.newaxis] * K[:, np.newaxis, np.newaxis]
+                    + one_third * K[:, np.newaxis, np.newaxis] * bar_A_LL
                     - AikAjk))
     #Trace M_ij
-    Trace_M = get_trace(M_LL, gamma_UU)
+    Trace_M = get_trace(M_LL, bar_gamma_UU)
 
     #Trace Free M^{ij}
-    
     #Trace Free:
-    TraceFree_M_LL = M_LL - one_third*bar_gamma_LL*Trace_M
+    TraceFree_M_LL = M_LL - one_third * bar_gamma_LL*Trace_M
     
     #Trace Free upper indices
     TraceFree_M_UU = np.einsum('xik, xjl, xij->xkl',bar_gamma_UU, bar_gamma_UU, TraceFree_M_LL)
@@ -118,8 +124,10 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, matter, grid, background):
 
     N_L = bar_D_bar_A_LU + 6*d1_phi - two_thirds* d1_K
 
+    N_U = np.einsum('xai, xi->xa', bar_gamma_UU, N_L)
+
     #N_iN^i
-    Trace_N = np.einsum('xi, xia, xa->x', N_L, bar_gamma_UU,N_L)
+    N_squared = np.einsum('xi, xia, xa->x', N_L, bar_gamma_UU,N_L)
     #________________________________________________________________________________________
     # Line 1
 
@@ -136,7 +144,10 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, matter, grid, background):
     #\bar{A}_{ij} \bar{A}^{ij}
     Asquared = get_bar_A_squared(r, bssn_vars, background)
 
-    line1 = (-four_thirds*Trace_M*(ilapse*dKdt + ilapse*D2_lapse - Asquared - one_third*K*K))
+    line1 = (-four_thirds*Trace_M * (ilapse * dKdt 
+                                     + ilapse * D2_lapse 
+                                     - Asquared 
+                                     - one_third * K * K))
 
     #________________________________________________________________________________________
     #Line 2
@@ -145,40 +156,55 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, matter, grid, background):
 
     #Term 5
     bar_A_LL_d_Shift_U_symmetric = (np.einsum('xjk, xlj->xkl',bar_A_LL,d1_Shift_U)
-                                    - np.einsum('xjl, xkj->xlk'))
+                                    + np.einsum('xjl, xkj->xkl')) #ASSUMPTION: I made the indices after arrow symmetric [hence i changed their order myseflf]
 
     #Term 6
     DkDl_lapse = (d2_lapse
                   - np.einsum('xwkl,xw->xkl',bar_chris, d1_lapse)
-                  - 2*np.einsum('xl, xk->xlk', d1_phi , d1_lapse) 
+                  - 2*np.einsum('xl, xk->xkl', d1_phi , d1_lapse) # SAME ASSUMPTION IN THIS LINE (symmetrized it myself xlk = xkl ???)
                   - 2*np.einsum('xk, xl->xkl', d1_phi , d1_lapse) #does it matter in which order -> xkl or ->xlk ? | shouldn't cuz resulting object prob symmetric anyway
                   + 2*np.einsum('xkl, xwd, xd, xw->xkl',bar_gamma_LL, bar_gamma_UU, d1_phi, d1_lapse))
 
-    line2 = 8*TraceFree_M_UU*(ilapse*dadt + 2*ilapse*bar_A_LL_d_Shift_U_symmetric + ilapse*DkDl_lapse)
+    # Here we make sure that the lapse has the right shape. (since we are making a 2 index object)
+    line2_beforeContraction = (ilapse[:, np.newaxis, np.newaxis] * dadt 
+              + 2 * ilapse[:, np.newaxis, np.newaxis] * bar_A_LL_d_Shift_U_symmetric 
+              + ilapse[:, np.newaxis, np.newaxis] * DkDl_lapse)
     
+    line2 = 8 * np.einsum('xij, xij->x',TraceFree_M_UU, line2_beforeContraction)
     #________________________________________________________________________________________
     #Line 3
+
+    bar_div_shift =  np.einsum('xii->x', d1_Shift_U)
 
     AkjAjl = np.einsum('xkj, xja, xal->xkl',bar_A_LL, bar_gamma_UU, bar_A_LL)
 
     #probably will need to employ np.newaxis machinery
-    line3 = 8*TraceFree_M_UU*e4phi*(AkjAjl - two_thirds*K*bar_A_LL + two_thirds * ilapse* d1_Shift_U*bar_A_LL)
+    line3_beforeContraction= (AkjAjl 
+              - two_thirds * K[:, np.newaxis, np.newaxis] * bar_A_LL 
+              + two_thirds * ilapse[:, np.newaxis, np.newaxis] * bar_div_shift[:, np.newaxis, np.newaxis] * bar_A_LL) #Are np.newaxis correct ? 
     
+    #We peform this last line to make sure that we are left with a scalar at the end
+    line3 = 8 * e4phi * np.einsum('xij, xij->x', TraceFree_M_UU, line3_beforeContraction)
+
     #________________________________________________________________________________________
     #Line 4
 
-    D_L_A_LL = (e4phi*(4*np.einsum('xi, xjk->xijk',d1_phi,bar_A_LL) + a_times_d1_s +s_times_d1_a
+    D_L_A_LL = (e4phi*(4*np.einsum('xi, xjk->xijk',d1_phi,bar_A_LL) 
+                       + a_times_d1_s #should i introduce einsum here in any way ?
+                       + s_times_d1_a
                        - np.einsum('xlij, xlk-> xijk',bar_chris, bar_A_LL)
-                       - 2*np.einsum('xj, xik->xjik',d1_phi, bar_A_LL) 
+                       - 2*np.einsum('xj, xik->xijk',d1_phi, bar_A_LL) # SYMMETRIZED IT MYSELF
                        - 2*np.einsum('xi, xjk-> xijk',d1_phi, bar_A_LL)
-                       + 2*np.einsum('xij, xlw, xw, xjl-> xikj', bar_gamma_LL, bar_gamma_UU, d1_phi, bar_A_LL)))
+                       + 2*np.einsum('xij, xlw, xw, xjl-> xijk', bar_gamma_LL, bar_gamma_UU, d1_phi, bar_A_LL))) #SYMMETRIZED IT MYSZELF
 
-    D_U_A_UU = em4phi**3 *np.einsum('xjb, xkc, xia, xabc->xijk',bar_gamma_UU,bar_gamma_UU,bar_gamma_UU,bar_gamma_UU,D_L_A_LL)
-
-    #finish term 8 + last line!!!!
+    D_U_A_UU = em4phi**3 *np.einsum('xjb, xkc, xia, xabc->xijk',bar_gamma_UU,bar_gamma_UU,bar_gamma_UU,D_L_A_LL)
 
 
+    line4 = -4*(2*np.einsum('xijk, xijk->x',D_L_A_LL, D_U_A_UU)
+                - 2*np.einsum('xijk, xjik->x',D_L_A_LL, D_U_A_UU)
+                - four_thirds* np.einsum('xi, xi->x',d1_K, N_U)
+                - four_thirds*one_third* np.einsum('xi, xai ,xa->x',d1_K,bar_gamma_UU, d1_K )-2*N_squared)
 
-
+    L_GB = (line1 + line2 + line3 + line4)
 
     return L_GB

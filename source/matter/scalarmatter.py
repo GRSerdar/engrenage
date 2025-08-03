@@ -4,7 +4,7 @@ from core.grid import *
 from bssn.bssnstatevariables import *
 from bssn.bssnvars import *
 from bssn.tensoralgebra import *
-from bssn.gaussbonnet2 import * #compute_L_GB
+from bssn.gaussbonnet import * #compute_L_GB
 
 class ScalarMatter :
     """Represents the matter that sources the Einstein equation."""
@@ -102,7 +102,7 @@ class ScalarMatter :
         d1 = grid.get_d1_metric_quantities(unflattened_state)
         d2 = grid.get_d2_metric_quantities(unflattened_state)
 
-        L_GB = compute_L_GB(bssn_vars, bssn_rhs, d1, d2, matter, grid, background)
+        L_GB = compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background)
         dvdt   += 
         '''
         ########################################################################################################
