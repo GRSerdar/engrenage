@@ -23,9 +23,9 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background): #Took ,matter ,
     K = bssn_vars.K  # Trace of extrinsic curvature
     phi = bssn_vars.phi  # Conformal factor (this is consistent with the pdf)
     em4phi = np.exp(-4.0*bssn_vars.phi) 
-    e4phi = 1/em4phi
+    e4phi = np.exp(4.0*bssn_vars.phi) 
     lapse = bssn_vars.lapse  # Lapse function
-    ilapse = 1/lapse
+    ilapse = (lapse)**(-1)
 
     shift_U = bssn_vars.shift_U #scaled shift
     Shift_U = background.inverse_scaling_vector * bssn_vars.shift_U #Captial Shift 
@@ -96,9 +96,8 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background): #Took ,matter ,
 
     # Mij
 
-    #Did i do the np.newaxis correctly???
     M_LL = (Rij 
-           + e4phi*(two_nine*bar_gamma_LL* K[:, np.newaxis, np.newaxis] * K[:, np.newaxis, np.newaxis]
+           + e4phi[:, np.newaxis, np.newaxis] *(two_nine*bar_gamma_LL* K[:, np.newaxis, np.newaxis] * K[:, np.newaxis, np.newaxis]
                     + one_third * K[:, np.newaxis, np.newaxis] * bar_A_LL
                     - AikAjk))
     #Trace M_ij
@@ -106,7 +105,7 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background): #Took ,matter ,
 
     #Trace Free M^{ij}
     #Trace Free:
-    TraceFree_M_LL = M_LL - one_third * bar_gamma_LL*Trace_M
+    TraceFree_M_LL = M_LL - one_third * bar_gamma_LL*Trace_M[:, np.newaxis, np.newaxis]
     
     #Trace Free upper indices
     TraceFree_M_UU = np.einsum('xik, xjl, xij->xkl',bar_gamma_UU, bar_gamma_UU, TraceFree_M_LL)
@@ -156,7 +155,7 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background): #Took ,matter ,
 
     #Term 5
     bar_A_LL_d_Shift_U_symmetric = (np.einsum('xjk, xlj->xkl',bar_A_LL,d1_Shift_U)
-                                    + np.einsum('xjl, xkj->xkl')) #ASSUMPTION: I made the indices after arrow symmetric [hence i changed their order myseflf]
+                                    + np.einsum('xjl, xkj->xkl',bar_A_LL,d1_Shift_U )) #ASSUMPTION: I made the indices after arrow symmetric [hence i changed their order myseflf]
 
     #Term 6
     DkDl_lapse = (d2_lapse
@@ -189,15 +188,15 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background): #Took ,matter ,
     #________________________________________________________________________________________
     #Line 4
 
-    D_L_A_LL = (e4phi*(4*np.einsum('xi, xjk->xijk',d1_phi,bar_A_LL) 
+    D_L_A_LL = (e4phi[:, np.newaxis, np.newaxis, np.newaxis]  *(4*np.einsum('xi, xjk->xijk',d1_phi,bar_A_LL) 
                        + a_times_d1_s #should i introduce einsum here in any way ?
                        + s_times_d1_a
                        - np.einsum('xlij, xlk-> xijk',bar_chris, bar_A_LL)
                        - 2*np.einsum('xj, xik->xijk',d1_phi, bar_A_LL) # SYMMETRIZED IT MYSELF
                        - 2*np.einsum('xi, xjk-> xijk',d1_phi, bar_A_LL)
-                       + 2*np.einsum('xij, xlw, xw, xjl-> xijk', bar_gamma_LL, bar_gamma_UU, d1_phi, bar_A_LL))) #SYMMETRIZED IT MYSZELF
+                       + 2*np.einsum('xik, xlw, xw, xjl-> xijk', bar_gamma_LL, bar_gamma_UU, d1_phi, bar_A_LL))) #SYMMETRIZED IT MYSZELF
 
-    D_U_A_UU = em4phi**3 *np.einsum('xjb, xkc, xia, xabc->xijk',bar_gamma_UU,bar_gamma_UU,bar_gamma_UU,D_L_A_LL)
+    D_U_A_UU = (em4phi[:, np.newaxis, np.newaxis, np.newaxis])**3 *np.einsum('xjb, xkc, xia, xabc->xijk',bar_gamma_UU,bar_gamma_UU,bar_gamma_UU,D_L_A_LL)
 
 
     line4 = -4*(2*np.einsum('xijk, xijk->x',D_L_A_LL, D_U_A_UU)

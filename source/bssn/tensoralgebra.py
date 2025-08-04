@@ -98,7 +98,7 @@ def get_bar_gamma_LL(r, h_LL, background) :
     epsilon_LL = h_LL * background.scaling_matrix
     bar_gamma_LL = epsilon_LL + background.hat_gamma_LL
     
-    return bar_gamm
+    return bar_gamma_LL
 
 # Computer the rescaled spatial metric n_ij * \bar \gamma_ij given the rescaled perturbation h
 def get_rescaled_bar_gamma_LL(r, h_LL, background) :   

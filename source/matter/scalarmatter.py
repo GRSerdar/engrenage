@@ -67,7 +67,8 @@ class ScalarMatter :
             
         return scalar_emtensor
 
-    def get_matter_rhs(self, r, bssn_vars, bssn_d1, background) :
+    #def get_matter_rhs(self, r, bssn_vars, bssn_d1, background) : # In the new one below i changed the signature of the function (to not recalculate things i already calculated.)
+    def get_matter_rhs(self, r, bssn_vars, bssn_d1, bssn_d2, bssn_rhs, grid, background):
 
         assert self.matter_vars_set, 'Matter vars not set'        
         
@@ -97,14 +98,13 @@ class ScalarMatter :
 
         ########################################################################################################
         #MODIFICATION FOR SCALAR GAUS BONNET PART (extra term to dvdt)
-        '''
-        bssn_rhs = BSSNVars(N)
-        d1 = grid.get_d1_metric_quantities(unflattened_state)
-        d2 = grid.get_d2_metric_quantities(unflattened_state)
 
-        L_GB = compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background)
-        dvdt   += 
-        '''
+        # Add Gauss-Bonnet term
+        L_GB = compute_L_GB(bssn_vars, bssn_rhs, bssn_d1, bssn_d2, grid, background)
+        lambda_GB = 10**(-6)
+        
+        dvdt += bssn_vars.lapse * lambda_GB * L_GB
+
         ########################################################################################################
         
         return dudt, dvdt
