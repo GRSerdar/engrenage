@@ -44,8 +44,15 @@ class ScalarMatter :
         N = np.size(r) 
         scalar_emtensor = EMTensor(N)
         
+        #safe_phi = np.clip(bssn_vars.phi, -20, 20)
+        #em4phi = np.exp(-4.0*safe_phi)    
+        
         em4phi = np.exp(-4.0 * bssn_vars.phi)
+
+        #print(f"max(phi): {np.max(bssn_vars.phi)}, min(phi): {np.min(bssn_vars.phi)}")
+
         bar_gamma_UU = get_bar_gamma_UU(r, bssn_vars.h_LL, background)
+        
         # The potential V(u) = 1/2 mu^2 u^2
         scalar_emtensor.rho = (  0.5 * self.v * self.v
                                + 0.5 * em4phi * np.einsum('xij,xi,xj->x', bar_gamma_UU, self.d1_u, self.d1_u)
@@ -68,7 +75,7 @@ class ScalarMatter :
         return scalar_emtensor
 
     #def get_matter_rhs(self, r, bssn_vars, bssn_d1, background) : # In the new one below i changed the signature of the function (to not recalculate things i already calculated.)
-    def get_matter_rhs(self, r, bssn_vars, bssn_d1, bssn_d2, bssn_rhs, grid, background):
+    def get_matter_rhs(self, r, bssn_vars, bssn_d1, bssn_d2, bssn_rhs, grid, background,advec):
 
         assert self.matter_vars_set, 'Matter vars not set'        
         
@@ -97,14 +104,18 @@ class ScalarMatter :
         dvdt   += np.einsum('xj,xj->x', background.inverse_scaling_vector * bssn_vars.shift_U,   self.advec_v)
 
         ########################################################################################################
-        #MODIFICATION FOR SCALAR GAUS BONNET PART (extra term to dvdt)
+        # MODIFICATION FOR SCALAR GAUS BONNET PART (extra term to dvdt)
 
         # Add Gauss-Bonnet term
-        L_GB = compute_L_GB(bssn_vars, bssn_rhs, bssn_d1, bssn_d2, grid, background)
-        lambda_GB = 10**(-6)
+        L_GB = compute_L_GB(bssn_vars, bssn_rhs, bssn_d1, bssn_d2, grid, background, advec)
+        lambda_GB = 10**(-2)
         
-        dvdt += bssn_vars.lapse * lambda_GB * L_GB
+        dvdt += lambda_GB * L_GB
 
+        #print(f"max(L_GB): {np.max(L_GB):.3e}, max(K): {np.max(bssn_vars.K):.3e}, max(h_LL): {np.max(bssn_vars.h_LL):.3e}, max(φ): {np.max(bssn_vars.phi):.3e},max(a_LL): {np.max(bssn_vars.a_LL):.3e}")
+
+
+        # END OF SCALAR GAUSS BONNET MODIFICATION
         ########################################################################################################
         
         return dudt, dvdt

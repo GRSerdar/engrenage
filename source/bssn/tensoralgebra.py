@@ -13,7 +13,8 @@ one_third = 1.0/3.0
 two_thirds = 2.0/3.0
 four_thirds = 4.0/3.0
 
-eight_pi_G = 8.0 * np.pi * 1.0 # Newtons constant, we take G=c=1 #WE PUT THIS TO ZERO IN THE CASE WE WANT TO 'TURN OFF' BACKTRACKING
+#eight_pi_G = 8.0 * np.pi * 1.0 # put this to zero to 'turn off' backreaction
+eight_pi_G = 0
 
 # Kronecker delta \delta_ij (i.e. identity matrix)
 delta_ij = np.identity(SPACEDIM)

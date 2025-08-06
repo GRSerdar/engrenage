@@ -58,6 +58,13 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
     determinant_bar_gamma = get_det_bar_gamma(r, bssn_vars.h_LL, background)
     determinant_hat_gamma = background.det_hat_gamma
     rescaling_factor = np.power(determinant_bar_gamma / determinant_hat_gamma, -1./3)
+
+    #________________________________________________________________________________________
+    # DEBUGGING
+
+
+
+    #________________________________________________________________________________________
     
     # Check it is set correctly at first timestep
     error = np.abs(rescaling_factor - 1.0)
@@ -82,10 +89,11 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
     
     # Matter sources, must be defined in matter class
     my_emtensor  = matter.get_emtensor(r, bssn_vars, background)
+
     #matter_rhs = matter.get_matter_rhs(r, bssn_vars, d1, background)  
 
     #  SINCE WE CHANGED THE SIGNATURE OF GET_MATTER_RHS, WE HAVE TO ADJUST IT AGAIN HERE.
-    matter_rhs = matter.get_matter_rhs(r, bssn_vars, d1, d2, bssn_rhs, grid,  background)     
+    #matter_rhs = matter.get_matter_rhs(r, bssn_vars, d1, d2, bssn_rhs, grid,  background, advec)     
 
     if (timing_on) :     
         check_time_3 = time.time()
@@ -96,7 +104,8 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
 
     # Get the bssn rhs - see bssnrhs.py
     get_bssn_rhs(bssn_rhs, r, bssn_vars, d1, d2, background, my_emtensor)
-    
+
+
     # Set the gauge evolution for the lapse and shift
     # eta is the 1+log slicing damping coefficient - of order 1/M_adm of spacetime
     eta = 1.0
@@ -122,6 +131,9 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
     
     advec_a_LL = get_tensor_advection(r, bssn_vars.a_LL, advec.a_LL, bssn_vars.shift_U, d1.shift_U, background)
     bssn_rhs.a_LL += advec_a_LL
+
+    # Switched places of matter_rhs to here to ensure the lie derivative wrt shift is taken at right time!
+    matter_rhs = matter.get_matter_rhs(r, bssn_vars, d1, d2, bssn_rhs, grid,  background, advec)
 
     # Convert the tensorial forms back into the state variables, not yet flattened
     bssn_rhs_state = bssn_rhs.set_bssn_state_vars()
@@ -185,4 +197,6 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
     #################################################################################################### 
     # Finally return the rhs, flattened into one long vector
     
-    return rhs_state.reshape(-1)
+    # We modify the return so we can call the evolved variables in our gauss bonnet file (including lie derivative)
+    # note that you have to now use get_rhs[0] in the notebook to be able ot use solve_ivp.
+    return rhs_state.reshape(-1) # , bssn_rhs

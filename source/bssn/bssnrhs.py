@@ -12,7 +12,12 @@ def get_bssn_rhs(bssn_rhs, r, bssn_vars, d1, d2, background, emtensor) :
     ####################################################################################################
     # Get all the useful quantities that will be used in the rhs
     
+    #safe_phi = np.clip(bssn_vars.phi, -20, 20)
+    #em4phi = np.exp(-4.0*safe_phi)    
+
     em4phi = np.exp(-4.0*bssn_vars.phi)    
+
+
     bar_gamma_LL = get_bar_gamma_LL(r, bssn_vars.h_LL, background)
     bar_gamma_UU = get_bar_gamma_UU(r, bssn_vars.h_LL, background)
     
@@ -38,7 +43,7 @@ def get_bssn_rhs(bssn_rhs, r, bssn_vars, d1, d2, background, emtensor) :
     bar_div_shift =  np.einsum('xii->x', d1_Shift_U)
     bar_div_shift += np.einsum('xiij,xj->x', bar_chris, Shift_U)     
 
-    # Trace of \bar Aij and A_ij A^ij
+    # Trace of \bar Aij and \bar{A}_ij \bar{A}^ij
     trace_bar_A   = get_trace_bar_A(r, bssn_vars, background)       
     bar_A_squared = get_bar_A_squared(r, bssn_vars, background) 
     bar_A_LL = get_bar_A_LL(r, bssn_vars, background)
