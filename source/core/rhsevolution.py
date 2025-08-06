@@ -133,7 +133,7 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
     bssn_rhs.a_LL += advec_a_LL
 
     # Switched places of matter_rhs to here to ensure the lie derivative wrt shift is taken at right time!
-    matter_rhs = matter.get_matter_rhs(r, bssn_vars, d1, d2, bssn_rhs, grid,  background, advec)
+    matter_rhs = matter.get_matter_rhs(r, bssn_vars, d1, d2, bssn_rhs, grid,  background)
 
     # Convert the tensorial forms back into the state variables, not yet flattened
     bssn_rhs_state = bssn_rhs.set_bssn_state_vars()
@@ -197,6 +197,4 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
     #################################################################################################### 
     # Finally return the rhs, flattened into one long vector
     
-    # We modify the return so we can call the evolved variables in our gauss bonnet file (including lie derivative)
-    # note that you have to now use get_rhs[0] in the notebook to be able ot use solve_ivp.
-    return rhs_state.reshape(-1) # , bssn_rhs
+    return rhs_state.reshape(-1) 

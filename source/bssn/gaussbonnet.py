@@ -12,7 +12,7 @@ four_thirds = 4.0/3.0
 two_nine = 2.0/9.0
 third_two = 3.0/2.0
 
-def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background, advec): #Took ,matter , out of it since not used 
+def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     """
     Some extremely discriptive comment
     """
@@ -28,18 +28,7 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background, advec): #Took ,m
 
     lapse = bssn_vars.lapse  # Lapse function
     ilapse = (lapse)**(-1)
-
-    #### Trying out some clipped values ##############################
-    '''eps = 1e-8
-    K = np.clip(bssn_vars.K, -100.0, 100.0)
-    phi = np.clip(bssn_vars.phi, -10, 10)  # Prevent extreme values
-    em4phi = np.maximum(np.exp(-4.0 * phi), eps)
-    e4phi = np.minimum(1.0 / em4phi, 1.0 / eps)
-    lapse = np.clip(bssn_vars.lapse, 1e-6, 1e6)  # Prevent zero or large lapse
-    ilapse = 1.0 / lapse'''
-    #### Trying out some clipped values ##############################
     
-
     shift_U = bssn_vars.shift_U #scaled shift (lower case)
     Shift_U = background.inverse_scaling_vector * bssn_vars.shift_U #Captial Shift 
 
@@ -66,8 +55,10 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background, advec): #Took ,m
          + np.einsum('xi,xijk->xijk', background.inverse_scaling_vector, d2.shift_U)) #partial_i partial_j Shift_U
 
     ### Maybe these are not really needed ###################################
+
     # d1_a_LL = d1.a_LL  # Partial_k a_ij (derivative of the scaled \bar{A}_{ij})
     # d1_sij = background.d1_scaling_matrix
+
     ### Maybe these are not really needed ###################################
 
     s_times_d1_a = background.scaling_matrix[:,:,:,np.newaxis] * d1.a_LL
@@ -98,7 +89,6 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background, advec): #Took ,m
     AikAjk = np.einsum('xik, xkb, xjb->xij', bar_A_LL, bar_gamma_UU, bar_A_LL)
 
     # Mij
-
     M_LL = (Rij 
            + e4phi[:, np.newaxis, np.newaxis] *(two_nine * bar_gamma_LL* K[:, np.newaxis, np.newaxis] * K[:, np.newaxis, np.newaxis]
                     + one_third * K[:, np.newaxis, np.newaxis] * bar_A_LL
@@ -153,7 +143,7 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background, advec): #Took ,m
     #\bar{A}_{ij} \bar{A}^{ij}
     Asquared = get_bar_A_squared(r, bssn_vars, background)
 
-    line1 =  lapse*(-four_thirds*Trace_M * (ilapse * dKdt 
+    line1 =  (-four_thirds*Trace_M * (ilapse * dKdt 
                                      + ilapse * D2_lapse 
                                      - Asquared 
                                      - one_third * K * K))
@@ -201,7 +191,7 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background, advec): #Took ,m
               + 2 * ilapse[:, np.newaxis, np.newaxis] * bar_A_LL_d_Shift_U_symmetric 
               + ilapse[:, np.newaxis, np.newaxis] * DkDl_lapse)
 
-    line2 =  lapse*(8 * np.einsum('xij, xij->x',TraceFree_M_UU, line2_beforeContraction))
+    line2 =  (8 * np.einsum('xij, xij->x',TraceFree_M_UU, line2_beforeContraction))
     ##
 
     '''line1_term1 = 8* lapse* (ilapse * np.einsum('xij, xij->x', TraceFree_M_UU, dadt ))
@@ -222,7 +212,7 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background, advec): #Took ,m
               + two_thirds * ilapse[:, np.newaxis, np.newaxis] * bar_div_shift[:, np.newaxis, np.newaxis] * bar_A_LL) #Are np.newaxis correct ? 
     
     #We peform this last line to make sure that we are left with a scalar at the end
-    line3 =  lapse*(8 * e4phi * np.einsum('xij, xij->x', TraceFree_M_UU, line3_beforeContraction))
+    line3 =  (8 * e4phi * np.einsum('xij, xij->x', TraceFree_M_UU, line3_beforeContraction))
 
     #________________________________________________________________________________________
     #Line 4
@@ -237,12 +227,12 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background, advec): #Took ,m
 
     D_U_A_UU = (em4phi[:, np.newaxis, np.newaxis, np.newaxis])**3 *np.einsum('xjb, xkc, xia, xabc->xijk',bar_gamma_UU,bar_gamma_UU,bar_gamma_UU,D_L_A_LL)
 
-    line4 = lapse*(-4*(2*np.einsum('xijk, xijk->x',D_L_A_LL, D_U_A_UU)
+    line4 = (-4*(2*np.einsum('xijk, xijk->x',D_L_A_LL, D_U_A_UU)
                 - 2*np.einsum('xijk, xjik->x',D_L_A_LL, D_U_A_UU)
                 - four_thirds* np.einsum('xi, xi->x',d1_K, N_U)
                 - four_thirds*one_third* np.einsum('xi, xai ,xa->x',d1_K,bar_gamma_UU, d1_K )-2*N_squared))
     
-    L_GB = (line1 + line2 + line3 + line4)
+    L_GB = lapse*(line1 + line2 + line3 + line4)
     #L_GB = line1
     
     ###### DEBUGGING PRINT STATEMENTS ################################ 
