@@ -91,9 +91,7 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
     my_emtensor  = matter.get_emtensor(r, bssn_vars, background)
 
     #matter_rhs = matter.get_matter_rhs(r, bssn_vars, d1, background)  
-
-    #  SINCE WE CHANGED THE SIGNATURE OF GET_MATTER_RHS, WE HAVE TO ADJUST IT AGAIN HERE.
-    #matter_rhs = matter.get_matter_rhs(r, bssn_vars, d1, d2, bssn_rhs, grid,  background, advec)     
+    #matter_rhs = matter.get_matter_rhs(r, bssn_vars, d1, d2, bssn_rhs, grid,  background)     
 
     if (timing_on) :     
         check_time_3 = time.time()
@@ -132,8 +130,11 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
     advec_a_LL = get_tensor_advection(r, bssn_vars.a_LL, advec.a_LL, bssn_vars.shift_U, d1.shift_U, background)
     bssn_rhs.a_LL += advec_a_LL
 
+    #############################################################################################
     # Switched places of matter_rhs to here to ensure the lie derivative wrt shift is taken at right time!
     matter_rhs = matter.get_matter_rhs(r, bssn_vars, d1, d2, bssn_rhs, grid,  background)
+    #############################################################################################
+
 
     # Convert the tensorial forms back into the state variables, not yet flattened
     bssn_rhs_state = bssn_rhs.set_bssn_state_vars()

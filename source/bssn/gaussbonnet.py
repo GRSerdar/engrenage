@@ -136,9 +136,19 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
 
 
     #D^iD_i \alpha
+    '''
+    Old wrong version
     D2_lapse = (em4phi*(np.einsum('xia, xai->x',bar_gamma_UU, d2_lapse)
                         - np.einsum('xia, xlai, xl->x', bar_gamma_UU, bar_chris, d1_lapse)
-                        + 2*np.einsum('xla, xa, xl->x', bar_gamma_UU, d1_phi, d1_lapse)))
+                        + 2*np.einsum('xla, xa, xl->x', bar_gamma_UU, d1_phi, d1_lapse)))'''
+    
+    D2_lapse = (em4phi*(np.einsum('xia, xai->x',bar_gamma_UU, d2_lapse)
+                        - np.einsum('xia, xkai, xk->x', bar_gamma_UU, bar_chris, d1_lapse)
+                        - 2* np.einsum('xia, xa, xi->x', bar_gamma_UU, d1_lapse, d1_phi)
+                        - 2* np.einsum('xia, xi, xa->x', bar_gamma_UU, d1_lapse, d1_phi)
+                        + 2* np.einsum('xai, xkl, xl, xk->x',bar_gamma_LL, bar_gamma_UU, d1_phi, d1_lapse)))
+    
+
     
     #\bar{A}_{ij} \bar{A}^{ij}
     Asquared = get_bar_A_squared(r, bssn_vars, background)
@@ -157,8 +167,6 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
 
     line1 = 0* line1_term1 + line1_term2 + line1_term3 + line1_term4'''
     ###################################
-    
-
 
     #________________________________________________________________________________________
     #Line 2
@@ -187,8 +195,8 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
 
     # Here we make sure that the lapse has the right shape. (since we are making a 2 index object)
     ##
-    line2_beforeContraction = (ilapse[:, np.newaxis, np.newaxis] * dadt 
-              + 2 * ilapse[:, np.newaxis, np.newaxis] * bar_A_LL_d_Shift_U_symmetric 
+    line2_beforeContraction = (ilapse[:, np.newaxis, np.newaxis] * e4phi[:, np.newaxis, np.newaxis]* dadt 
+              + 2 * ilapse[:, np.newaxis, np.newaxis] * e4phi[:, np.newaxis, np.newaxis]* bar_A_LL_d_Shift_U_symmetric 
               + ilapse[:, np.newaxis, np.newaxis] * DkDl_lapse)
 
     line2 =  (8 * np.einsum('xij, xij->x',TraceFree_M_UU, line2_beforeContraction))
@@ -202,14 +210,14 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     #________________________________________________________________________________________
     #Line 3
 
-    bar_div_shift =  np.einsum('xii->x', d1_Shift_U)
+    # gave it a letter 'r' extra on the end to not have the same name as something defined earlier in another file (you never know...)
+    bar_div_shiftr =  np.einsum('xii->x', d1_Shift_U) 
 
     AkjAjl = np.einsum('xkj, xja, xal->xkl',bar_A_LL, bar_gamma_UU, bar_A_LL)
 
-    #probably will need to employ np.newaxis machinery
     line3_beforeContraction= (AkjAjl 
               - two_thirds * K[:, np.newaxis, np.newaxis] * bar_A_LL 
-              + two_thirds * ilapse[:, np.newaxis, np.newaxis] * bar_div_shift[:, np.newaxis, np.newaxis] * bar_A_LL) #Are np.newaxis correct ? 
+              + two_thirds * ilapse[:, np.newaxis, np.newaxis] * bar_div_shiftr[:, np.newaxis, np.newaxis] * bar_A_LL) #Are np.newaxis correct ? 
     
     #We peform this last line to make sure that we are left with a scalar at the end
     line3 =  (8 * e4phi * np.einsum('xij, xij->x', TraceFree_M_UU, line3_beforeContraction))
@@ -217,24 +225,45 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     #________________________________________________________________________________________
     #Line 4
 
-    D_L_A_LL = (e4phi[:, np.newaxis, np.newaxis, np.newaxis]  *(4*np.einsum('xi, xjk->xijk',d1_phi,bar_A_LL) 
-                       + a_times_d1_s #should i introduce einsum here in any way ?
-                       + s_times_d1_a
+    '''
+    OLD version
+    D_L_A_LL = (e4phi[:, np.newaxis, np.newaxis, np.newaxis] * (4*np.einsum('xi, xjk->xijk',d1_phi,bar_A_LL) 
+                       + a_times_d1_s + s_times_d1_a
                        - np.einsum('xlij, xlk-> xijk',bar_chris, bar_A_LL)
                        - 2*np.einsum('xj, xik->xijk',d1_phi, bar_A_LL) # SYMMETRIZED IT MYSELF
                        - 2*np.einsum('xi, xjk-> xijk',d1_phi, bar_A_LL)
                        + 2*np.einsum('xik, xlw, xw, xjl-> xijk', bar_gamma_LL, bar_gamma_UU, d1_phi, bar_A_LL))) #SYMMETRIZED IT MYSZELF
+    '''
+    
+    
+    #Try einsum explicityly with partial_i Aij and see the difference
 
+    D_L_A_LL = (e4phi[:, np.newaxis, np.newaxis, np.newaxis] * (4*np.einsum('xi, xjk->xijk',d1_phi,bar_A_LL) 
+                       + a_times_d1_s + s_times_d1_a
+                       - np.einsum('xlij, xlk-> xijk',bar_chris, bar_A_LL)
+                       - 2*np.einsum('xj, xik->xijk',d1_phi, bar_A_LL) 
+                       - 2*np.einsum('xi, xjk-> xijk',d1_phi, bar_A_LL)
+                       + 2*np.einsum('xij, xlw, xw, xlk-> xijk', bar_gamma_LL, bar_gamma_UU, d1_phi, bar_A_LL))
+                       - np.einsum('xlik, xjl-> xijk', bar_chris, bar_A_LL)
+                       - 2*np.einsum('xk, xji-> xijk', d1_phi, bar_A_LL)
+                       - 2*np.einsum('xi, xjk-> xijk', d1_phi, bar_A_LL)
+                       + 2*np.einsum('xik, xlw, xw, xjl-> xijk', bar_gamma_LL, bar_gamma_UU, d1_phi, bar_A_LL))
+    
+    ##### CHECKUP #######
+
+    ##### CHECKUP #######
+    
     D_U_A_UU = (em4phi[:, np.newaxis, np.newaxis, np.newaxis])**3 *np.einsum('xjb, xkc, xia, xabc->xijk',bar_gamma_UU,bar_gamma_UU,bar_gamma_UU,D_L_A_LL)
+
 
     line4 = (-4*(2*np.einsum('xijk, xijk->x',D_L_A_LL, D_U_A_UU)
                 - 2*np.einsum('xijk, xjik->x',D_L_A_LL, D_U_A_UU)
                 - four_thirds* np.einsum('xi, xi->x',d1_K, N_U)
-                - four_thirds*one_third* np.einsum('xi, xai ,xa->x',d1_K,bar_gamma_UU, d1_K )-2*N_squared))
+                - four_thirds*one_third* np.einsum('xi, xai ,xa->x',d1_K,bar_gamma_UU, d1_K )
+                - 2*N_squared))
     
     L_GB = lapse*(line1 + line2 + line3 + line4)
-    #L_GB = line1
-    
+
     ###### DEBUGGING PRINT STATEMENTS ################################ 
     # Different lines in full equation       
     #print(f"line1: {np.max(line1):.3e}, line2: {np.max(line2):.3e}, line3: {np.max(line3):.3e}, line4: {np.max(line4):.3e}, LGB: {np.max(L_GB):.3e}")
@@ -250,5 +279,6 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     #print(f"line1: {np.max(K):.3e}, line2: {np.max(bssn_rhs.h_LL):.3e}, line3: {np.max(phi):.3e}, line4: {np.max(bssn_vars.a_LL):.3e}, LGB: {np.max(L_GB):.3e}")
 
     ###### DEBUGGING PRINT STATEMENTS ################################
+    # print(np.min(L_GB))
 
     return L_GB 
