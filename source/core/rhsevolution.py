@@ -108,11 +108,19 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
     eta = 1.0
     bssn_rhs.b_U     += 0.75 * bssn_rhs.lambda_U - eta * bssn_vars.b_U
     bssn_rhs.shift_U += bssn_vars.b_U
-    bssn_rhs.lapse   += - 2.0 * bssn_vars.lapse * bssn_vars.K        
+    bssn_rhs.lapse   += - 2.0 * bssn_vars.lapse * bssn_vars.K    
+
+    # We call the matter function here (before some of the advection terms are added)
+    # But we still call it after bssn_rhs since we are using dKdt and dadt (so that they are not zero)
+    matter_rhs = matter.get_matter_rhs(r, bssn_vars, d1, d2, bssn_rhs, grid,  background)    
         
     # Add advection to bssn time derivatives (this is the bit coming from the shift in the Lie derivative)
     # One sided stencils are used which helps stability
     # Note the additional advection terms from rescaling
+
+    ########################################################################################################
+    # ADVECTION
+    ########################################################################################################
     
     # Scalars first
     bssn_rhs.phi += np.einsum('xj,xj->x', background.inverse_scaling_vector * bssn_vars.shift_U,   advec.phi)
@@ -128,12 +136,13 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
     
     advec_a_LL = get_tensor_advection(r, bssn_vars.a_LL, advec.a_LL, bssn_vars.shift_U, d1.shift_U, background)
     bssn_rhs.a_LL += advec_a_LL
+    
+    # Extra advection terms 
+    '''bar_div_shift = get_bar_div_shift(r, bssn_vars, d1, background)  
+    bssn_rhs.a_LL -= (2.0/3.0) * bar_div_shift[:,np.newaxis,np.newaxis] * bssn_vars.a_LL'''
 
-    #############################################################################################
-    # Switched places of matter_rhs to here to ensure the lie derivative wrt shift is taken at right time!
-    matter_rhs = matter.get_matter_rhs(r, bssn_vars, d1, d2, bssn_rhs, grid,  background)
-    #############################################################################################
-
+    ########################################################################################################
+    ########################################################################################################
 
     # Convert the tensorial forms back into the state variables, not yet flattened
     bssn_rhs_state = bssn_rhs.set_bssn_state_vars()
