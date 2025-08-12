@@ -103,7 +103,6 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
     # Get the bssn rhs - see bssnrhs.py
     get_bssn_rhs(bssn_rhs, r, bssn_vars, d1, d2, background, my_emtensor)
 
-
     # Set the gauge evolution for the lapse and shift
     # eta is the 1+log slicing damping coefficient - of order 1/M_adm of spacetime
     eta = 1.0

@@ -114,7 +114,9 @@ class ScalarMatter :
         chi0 = 0.15
         function_of_lambda= (lambda_GB)/(1+np.exp(-100*(chi-chi0)))
         
-        dvdt +=  lambda_GB * L_GB
+        dvdt +=  function_of_lambda * L_GB
+
+        #print(function_of_lambda * L_GB)
 
         #print(f"max(L_GB): {np.max(L_GB):.3e}, max(K): {np.max(bssn_vars.K):.3e}, max(h_LL): {np.max(bssn_vars.h_LL):.3e}, max(φ): {np.max(bssn_vars.phi):.3e},max(a_LL): {np.max(bssn_vars.a_LL):.3e}")
 

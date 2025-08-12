@@ -139,7 +139,7 @@ def get_bssn_rhs(bssn_rhs, r, bssn_vars, d1, d2, background, emtensor) :
              + em4phi[:,np.newaxis,np.newaxis] * (dadt_TF_part
                                                   - one_third * trace * r_bar_gamma_LL))
 
-    bssn_rhs.a_LL = dadt    
+    bssn_rhs.a_LL = dadt   
 
     ####################################################################################################    
     # lambda^i is the rescaled version of the constrained quantity \Lambda^i = \Delta^i
