@@ -102,6 +102,7 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
 
     # Get the bssn rhs - see bssnrhs.py
     get_bssn_rhs(bssn_rhs, r, bssn_vars, d1, d2, background, my_emtensor)
+    matter_rhs = matter.get_matter_rhs(r, bssn_vars, d1, d2, bssn_rhs, grid,  background) 
 
     # Set the gauge evolution for the lapse and shift
     # eta is the 1+log slicing damping coefficient - of order 1/M_adm of spacetime
@@ -110,9 +111,8 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
     bssn_rhs.shift_U += bssn_vars.b_U
     bssn_rhs.lapse   += - 2.0 * bssn_vars.lapse * bssn_vars.K    
 
-    # We call the matter function here (before some of the advection terms are added)
+    # We call the get rhs function here (before some of the advection terms are added)
     # But we still call it after bssn_rhs since we are using dKdt and dadt (so that they are not zero)
-    matter_rhs = matter.get_matter_rhs(r, bssn_vars, d1, d2, bssn_rhs, grid,  background)    
         
     # Add advection to bssn time derivatives (this is the bit coming from the shift in the Lie derivative)
     # One sided stencils are used which helps stability
@@ -205,5 +205,5 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
         
     #################################################################################################### 
     # Finally return the rhs, flattened into one long vector
-    
-    return rhs_state.reshape(-1) 
+    x=1
+    return rhs_state.reshape(-1)
