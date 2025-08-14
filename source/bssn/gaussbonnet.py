@@ -15,6 +15,7 @@ four_thirds = 4.0/3.0
 two_nine = 2.0/9.0
 third_two = 3.0/2.0
 
+Gaur = []
 LLine1 = []
 LLine2 = []
 LLine3 = []
@@ -133,24 +134,45 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     # Does not include advection!!!
     dKdt_perp = bssn_rhs.K
 
-    #D^iD_i \alpha    
+    #D^iD_i \alpha  
+    """  
+    THESE DIFFERENT NOTATIONS ALL GIVE THE SAME NUMERICAL RESULTS!!!
+
     D2_lapse = (em4phi*(np.einsum('xia, xai->x',bar_gamma_UU, d2_lapse)
                         - np.einsum('xia, xkai, xk->x', bar_gamma_UU, bar_chris, d1_lapse)
                         - 2* np.einsum('xia, xa, xi->x', bar_gamma_UU, d1_lapse, d1_phi)
                         - 2* np.einsum('xia, xi, xa->x', bar_gamma_UU, d1_lapse, d1_phi)
-                        + 6* np.einsum('xkl, xl, xk->x', bar_gamma_UU, d1_phi, d1_lapse)))
+                        + 6* np.einsum('xkl, xl, xk->x', bar_gamma_UU, d1_phi, d1_lapse))) 
+
+    D2_lapse2 = (em4phi*(np.einsum('xia, xai->x',bar_gamma_UU, d2_lapse)
+                        - np.einsum('xia, xkai, xk->x', bar_gamma_UU, bar_chris, d1_lapse)
+                        + 4* np.einsum('xia, xa, xi->x', bar_gamma_UU, d1_lapse, d1_phi)
+                        - 2* np.einsum('xia, xi, xa->x', bar_gamma_UU, d1_lapse, d1_phi)))
+    """
+
+    D2_lapse3 = (em4phi*(np.einsum('xia, xai->x',bar_gamma_UU, d2_lapse)
+                        - np.einsum('xia, xkai, xk->x', bar_gamma_UU, bar_chris, d1_lapse)
+                        + 2* np.einsum('xia, xa, xi->x', bar_gamma_UU, d1_lapse, d1_phi)))
+    """
+    print("D2_lapse: ", np.min(D2_lapse))
+    print("D2_lapse2: ", np.min(D2_lapse2))
+    print("D2_lapse3: ", np.min(D2_lapse3))
+    print("- - - - - - - - - - ")
+    print("|D2_lapse - D2_lapse2|",np.abs(np.min(D2_lapse) - np.min(D2_lapse2)))
+    print("|D2_lapse2 - D2_lapse3|",np.abs(np.min(D2_lapse2) - np.min(D2_lapse3)))
+    print('_____________________')
+    """
     
     #\bar{A}_{ij} \bar{A}^{ij}
     Asquared = get_bar_A_squared(r, bssn_vars, background)
 
-    line1 = lapse*(-four_thirds*Trace_M * (ilapse * dKdt_perp 
-                                     + ilapse * D2_lapse
-                                     - Asquared 
-                                     - one_third * K * K))
+    line1 = lapse*(-four_thirds*Trace_M * 
+                   (ilapse * dKdt_perp 
+                    + ilapse * D2_lapse3
+                    - Asquared 
+                    - one_third * K * K))
     
     LLine1.append(line1)
-
-
     #________________________________________________________________________________________
     #Line 2
      
@@ -158,8 +180,11 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     dadt_gb = bssn_rhs.a_LL
 
     # Removing the shift part of advection (for clean propagation)!!!
-    # This is only used to calculate the Gaus bonnet term
-    bar_div_shift = get_bar_div_shift(r, bssn_vars, d1, background)  
+    # This is only used to calculate the Gaus bonnet term  
+
+    bar_div_shift =  np.einsum('xii->x', d1_Shift_U) + np.einsum('xiij,xj->x', bar_chris, Shift_U)   
+    #bar_div_shift = get_bar_div_shift(r, bssn_vars, d1, background) #[not the same divshift as in bssnrhs]
+    
     dadt_perp = dadt_gb + (2.0/3.0) * bar_div_shift[:,np.newaxis,np.newaxis] * bssn_vars.a_LL
 
     #Term 5
@@ -167,59 +192,80 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
                                     + np.einsum('xjl, xkj->xkl',bar_A_LL,d1_Shift_U )) #ASSUMPTION: I made the indices after arrow symmetric [hence i changed their order myseflf]
 
     #Term 6
-    DkDl_lapse = (d2_lapse
+    '''DkDl_lapse = (d2_lapse
                   - np.einsum('xwkl,xw->xkl',bar_chris, d1_lapse)
                   - 2*np.einsum('xl, xk->xkl', d1_phi , d1_lapse) 
                   - 2*np.einsum('xk, xl->xkl', d1_phi , d1_lapse) 
                   + 2*np.einsum('xkl, xwd, xd, xw->xkl',bar_gamma_LL, bar_gamma_UU, d1_phi, d1_lapse))
     
+    DkDl_lapse_two = (d2_lapse
+                  - np.einsum('xwkl,xw->xkl',bar_chris, d1_lapse)
+                  - 2*np.einsum('xl, xk->xkl', d1_phi , d1_lapse) 
+                  - 2*np.einsum('xk, xl->xkl', d1_phi , d1_lapse) 
+                  #+ 2*np.einsum('xkl, xwd, xd, xw->xkl',bar_gamma_LL, bar_gamma_UU, d1_phi, d1_lapse)
+                  + 6*np.einsum('xk, xl->xkl',d1_lapse, d1_phi)) # line multiplied by zero ?
+       
+
+    DkDl_lapse_three = (d2_lapse
+                  - np.einsum('xwkl,xw->xkl',bar_chris, d1_lapse)
+                  + 4*np.einsum('xl, xk->xkl', d1_phi , d1_lapse) 
+                  - 2*np.einsum('xk, xl->xkl', d1_phi , d1_lapse))'''
     
-    ######### DEBUG ###########
-    '''print("d2_lapse: ", d2_lapse)
-    print("- np.einsum('xwkl,xw->xkl',bar_chris, d1_lapse): ", - np.einsum('xwkl,xw->xkl',bar_chris, d1_lapse))
-    print("- 2*np.einsum('xl, xk->xkl', d1_phi , d1_lapse): ", - 2*np.einsum('xl, xk->xkl', d1_phi , d1_lapse) )
-    print("- 2*np.einsum('xk, xl->xkl', d1_phi , d1_lapse): ", - 2*np.einsum('xk, xl->xkl', d1_phi , d1_lapse) )
-    print("+ 2*np.einsum('xkl, xwd, xd, xw->xkl',bar_gamma_LL, bar_gamma_UU, d1_phi, d1_lapse)): ", + 2*np.einsum('xkl, xwd, xd, xw->xkl',bar_gamma_LL, bar_gamma_UU, d1_phi, d1_lapse))
-    print(' ')'''
-    #print("DkDl_lapse: ", DkDl_lapse)
-    ######### DEBUG ###########
+    # I don't get this term in my equations but this is what Katy wrote in bssnrhs.py
+    DkDl_lapse_Katy = (d2_lapse
+                  - np.einsum('xwkl,xw->xkl',bar_chris, d1_lapse)
+                  + 4*np.einsum('xl, xk->xkl', d1_phi , d1_lapse) 
+                  - 2*np.einsum('xk, xl->xkl', d1_phi , d1_lapse))
+    
+    '''print("DkDl_lapse: ", np.min(DkDl_lapse))
+    print("DkDl_lapse_two: ", np.min(DkDl_lapse_two))
+    print("DkDl_lapse_three: ", np.min(DkDl_lapse_three))
+    print("- - - - - - - - - - ")
+    print("|DkDl_lapse1 - DkDl_lapse2|",np.abs(np.min(DkDl_lapse) - np.min(DkDl_lapse_two)))
+    print("|DkDl_lapse2 - DkDl_lapse3|",np.abs(np.min(DkDl_lapse_two) - np.min(DkDl_lapse_three)))
+    print('_____________________')'''
+
     
     # symmetrized it befor use
-    DkDl_lapse_sym = one_two * (DkDl_lapse + DkDl_lapse.swapaxes(1,2))
+    #DkDl_lapse_sym = one_two * (DkDl_lapse_three + DkDl_lapse_three.swapaxes(1,2))
 
-    line2_term_1 = 8  * e4phi * np.einsum('xij, xij->x', TraceFree_M_UU , dadt_perp)
+    line2_term_1 =  8  * e4phi * np.einsum('xij, xij->x', TraceFree_M_UU , dadt_perp)
 
-    # line 2 term 2 is set to zero, since we want to add the advection terms afterwards (all at the same time)
+    ## ## line 2 term 2 is set to zero, since we want to add the advection terms afterwards (all at the same time)
     line2_term_2 = 0 * (16  * e4phi * np.einsum('xij, xij->x', TraceFree_M_UU , bar_A_LL_d_Shift_U_symmetric))
-    line2_term_3 = 8  * np.einsum('xij, xij->x', TraceFree_M_UU , DkDl_lapse_sym)
+    ## ##
 
-    # Normally there should be a lapse*ilapse in front but removed it for computational speed
+    line2_term_3 =  8  * np.einsum('xij, xij->x', TraceFree_M_UU , DkDl_lapse_Katy)
+
+    # Normally there should be a (lapse*ilapse)* in front but removed it for computational reasons 
     line2 = (line2_term_1 + line2_term_2 + line2_term_3)
-
+    
     LLine2.append(line2)
-
+    
     #________________________________________________________________________________________
     #Line 3
 
     # gave it a letter 'r' extra on the end to not have the same name as something defined earlier in another file (you never know...)
-    bar_div_shiftr =  np.einsum('xii->x', d1_Shift_U) 
 
     AkjAjl = np.einsum('xkj, xja, xal->xkl',bar_A_LL, bar_gamma_UU, bar_A_LL)
 
     line3_term1 = 8 * e4phi * np.einsum('xij, xij->x',TraceFree_M_UU, AkjAjl)
 
     line3_term2 = -two_thirds * 8 * e4phi * K *  np.einsum('xij, xij->x',TraceFree_M_UU, bar_A_LL)
-    # line 3 term 3 is set to zero, since we want to add the advection terms afterwards (all at the same time)
-    line3_term3 = 0 * (two_thirds * 8 * e4phi * ilapse * bar_div_shiftr * np.einsum('xij, xij->x',TraceFree_M_UU, bar_A_LL))
 
-    line3 = lapse*(line3_term1 + line3_term2 + line3_term3)
+    #### line 3 term 3 is set to zero, since we want to add the advection terms afterwards (all at the same time)
+    '''bar_div_shiftr =  np.einsum('xii->x', d1_Shift_U) 
+    line3_term3 = 0 * (two_thirds * 8 * e4phi * ilapse * bar_div_shiftr * np.einsum('xij, xij->x',TraceFree_M_UU, bar_A_LL))'''
+    ####
+
+    line3 = lapse*(line3_term1 + line3_term2 )
 
     LLine3.append(line3)
 
     #________________________________________________________________________________________
     #Line 4   
 
-    D_L_A_LL = (e4phi[:, np.newaxis, np.newaxis, np.newaxis] 
+    '''D_L_A_LL = (e4phi[:, np.newaxis, np.newaxis, np.newaxis] 
                 * (4*np.einsum('xi, xjk->xijk',d1_phi,bar_A_LL) 
                    + a_times_d1_s + s_times_d1_a
                    - np.einsum('xlij, xlk-> xijk',bar_chris, bar_A_LL)
@@ -232,29 +278,62 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
                    + 2*np.einsum('xik, xlw, xw, xjl-> xijk', bar_gamma_LL, bar_gamma_UU, d1_phi, bar_A_LL))
                    )
     
-    ##### CHECKUP #######
 
+    D_L_A_LL2 = (e4phi[:, np.newaxis, np.newaxis, np.newaxis] 
+                * (4*np.einsum('xi, xjk->xijk',d1_phi,bar_A_LL) 
+                   + a_times_d1_s + s_times_d1_a
+                   - np.einsum('xlij, xlk-> xijk',bar_chris, bar_A_LL)
+                   - 2*np.einsum('xj, xik->xijk',d1_phi, bar_A_LL) 
+                   + 4*np.einsum('xi, xjk-> xijk',d1_phi, bar_A_LL)
+
+                   - np.einsum('xlik, xjl-> xijk', bar_chris, bar_A_LL)
+                   - 2*np.einsum('xk, xji-> xijk', d1_phi, bar_A_LL)
+                   + 4*np.einsum('xi, xjk-> xijk', d1_phi, bar_A_LL)))'''
+    
+    D_L_A_LL3 = (e4phi[:, np.newaxis, np.newaxis, np.newaxis] 
+                * (4*np.einsum('xi, xjk->xijk',d1_phi,bar_A_LL) 
+                   + a_times_d1_s + s_times_d1_a
+                   - np.einsum('xlij, xlk-> xijk',bar_chris, bar_A_LL)
+                   - 2*np.einsum('xj, xik->xijk',d1_phi, bar_A_LL) 
+
+                   - np.einsum('xlik, xjl-> xijk', bar_chris, bar_A_LL)
+                   - 2*np.einsum('xk, xji-> xijk', d1_phi, bar_A_LL)
+
+                   + 8*np.einsum('xi, xjk-> xijk', d1_phi, bar_A_LL)))
+    
+    
+    ##### CHECKUP #######
+    '''print("D_L_A_LL1: ", np.min(D_L_A_LL))
+    print("D_L_A_LL2: ", np.min(D_L_A_LL2))
+    print("D_L_A_LL3: ", np.min(D_L_A_LL3))
+    print("- - - - - - - - - - ")
+    print("|D_L_A_LL1 - D_L_A_LL2|",np.abs(np.min(D_L_A_LL) - np.min(D_L_A_LL2)))
+    print("|D_L_A_LL2 - D_L_A_LL3|",np.abs(np.min(D_L_A_LL2) - np.min(D_L_A_LL3)))
+    print('_____________________')'''
     ##### CHECKUP #######
     
-    D_U_A_UU = (em4phi[:, np.newaxis, np.newaxis, np.newaxis])**3 *np.einsum('xjb, xkc, xia, xabc->xijk',bar_gamma_UU,bar_gamma_UU,bar_gamma_UU,D_L_A_LL)
+    D_U_A_UU = (em4phi[:, np.newaxis, np.newaxis, np.newaxis]
+                * em4phi[:, np.newaxis, np.newaxis, np.newaxis]
+                * em4phi[:, np.newaxis, np.newaxis, np.newaxis] 
+                * np.einsum('xjb, xkc, xia, xabc->xijk',bar_gamma_UU,bar_gamma_UU,bar_gamma_UU,D_L_A_LL3))
 
-    line4 = lapse*(-4*(2*np.einsum('xijk, xijk->x',D_L_A_LL, D_U_A_UU)
-                - 2*np.einsum('xijk, xjik->x',D_L_A_LL, D_U_A_UU)
-                - four_thirds* np.einsum('xi, xi->x',d1_K, N_U)
-                - four_thirds*one_third* np.einsum('xi, xai ,xa->x',d1_K,bar_gamma_UU, d1_K )
-                - 2*N_squared))
+    line4 = lapse*(-4*(2*np.einsum('xijk, xijk->x',D_L_A_LL3 , D_U_A_UU)
+                            - 2*np.einsum('xijk, xjik->x',D_L_A_LL3 , D_U_A_UU)
+                            - four_thirds* np.einsum('xi, xi->x',d1_K, N_U)
+                            - four_thirds*one_third* np.einsum('xi, xai ,xa->x',d1_K,bar_gamma_UU, d1_K )
+                            - 2 * N_squared))
     
     LLine4.append(line4)
-
-
-
+    
     L_GB = (line1 + line2 + line3 + line4)
 
-    
-    '''print('line1: ', line1)
-    print('line2: ', line2)
-    print('line3: ', line3)
-    print('line4: ', line4)
-    print('_____________________')'''
+    #### DEBUG #####
 
+    
+    
+    
+    
+    #### DEBUG #####
+
+    Gaur.append(L_GB)
     return L_GB

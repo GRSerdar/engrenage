@@ -6,7 +6,6 @@ from bssn.bssnvars import *
 from bssn.tensoralgebra import *
 from bssn.gaussbonnet import * #compute_L_GB
 
-GaussBonnet = []
 
 class ScalarMatter :
     """Represents the matter that sources the Einstein equation."""
@@ -109,13 +108,11 @@ class ScalarMatter :
 
         chi = np.exp(-4.0* bssn_vars.phi) 
         lambda_GB = 0.05
-        chi0 = 0.15
+        #chi0 = 0.15
+        chi0 = 0.05
         function_of_lambda= (lambda_GB)/(1+np.exp(-100*(chi-chi0)))
-        
-        dvdt +=  function_of_lambda * L_GB
 
-        GaussBonnet.append(function_of_lambda * L_GB)
-        #print(function_of_lambda * L_GB)
+        dvdt +=  function_of_lambda * L_GB
 
         ########################################################################################################
         ########################################################################################################
