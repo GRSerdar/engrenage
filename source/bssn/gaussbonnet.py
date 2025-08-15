@@ -21,6 +21,34 @@ LLine2 = []
 LLine3 = []
 LLine4 = []
 
+# Line 1 objects
+dkdt_list = []
+asquared_list = []
+K_list = []
+
+# Line 2 objects
+dadt_list = []
+DkDl_lapse_Katy_list = []
+
+# Line 3
+ak_list = []
+klist = []
+
+
+# Line 4 objects
+D_difference = []
+D_1list = []
+D_2list = []
+d1K_N_U = []
+finalfour = []
+finalfour2 = []
+
+# Extra variables 
+Trace_M_list = []
+Hamilton = []
+
+
+
 def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     """
     Some extremely discriptive comment
@@ -46,7 +74,7 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     bar_gamma_UU = get_bar_gamma_UU(r, bssn_vars.h_LL, background)
 
     bar_A_LL = get_bar_A_LL(r, bssn_vars, background) 
-    # bar_A_UU = get_bar_A_UU(r, bssn_vars, background) #[not used]
+    bar_A_UU = get_bar_A_UU(r, bssn_vars, background) 
 
     #Derivative terms | notice that the derivative is only taken of the scaled variables.
     d1_phi = d1.phi  # Partial_i phi
@@ -91,6 +119,17 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
            + 4*np.einsum('xi, xj->xij', d1_phi, d1_phi)
            - 4*np.einsum('xij, xlm, xl, xm->xij', bar_gamma_LL, bar_gamma_UU, d1_phi, d1_phi))
     
+    # Katy her Rij
+    Rij_katy = (- 2.0 * d2_phi
+                         + 4.0 * np.einsum('xi,xj->xij', d1_phi, d1_phi)
+                         + 2.0 * np.einsum('xkij,xk->xij', bar_chris, d1_phi)
+                         + bar_Rij)
+    
+    '''print('Rij: ', np.min(Rij))
+    print('Rij_katy: ', np.min(Rij_katy))
+    print('diff: ', np.abs(np.min(Rij)) - np.min(Rij_katy))
+    '''
+    
     #\bar{A}_ij \bar{A}_j^k
     AikAjk = np.einsum('xik, xkb, xjb->xij', bar_A_LL, bar_gamma_UU, bar_A_LL)
 
@@ -99,18 +138,18 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
            + e4phi[:, np.newaxis, np.newaxis] *(two_nine * bar_gamma_LL* K[:, np.newaxis, np.newaxis] * K[:, np.newaxis, np.newaxis]
                     + one_third * K[:, np.newaxis, np.newaxis] * bar_A_LL
                     - AikAjk))
-    
-    # Ensure symmetric object
-    M_LL_sym = one_two * (M_LL + M_LL.swapaxes(1,2))
 
     # Trace M_ij
-    Trace_M = np.einsum("xij, xij->x",bar_gamma_UU, M_LL_sym)
+    Trace_M = np.einsum("xij, xij->x",bar_gamma_UU, M_LL)
+
+    Trace_M_list.append(Trace_M)
 
     # Trace Free M_{ij}
-    TraceFree_M_LL = M_LL_sym - one_third * bar_gamma_LL*Trace_M[:, np.newaxis, np.newaxis]
+    TraceFree_M_LL = M_LL - one_third * bar_gamma_LL*Trace_M[:, np.newaxis, np.newaxis]
     
     # Trace Free M^{ij}
     TraceFree_M_UU = np.einsum('xik, xjl, xij->xkl',bar_gamma_UU, bar_gamma_UU, TraceFree_M_LL)
+
 
     #________________________________________________________________________________________
     # Construction of N_i
@@ -134,21 +173,19 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     # Does not include advection!!!
     dKdt_perp = bssn_rhs.K
 
+    dkdt_list.append(dKdt_perp)
+
     #D^iD_i \alpha  
-    """  
-    THESE DIFFERENT NOTATIONS ALL GIVE THE SAME NUMERICAL RESULTS!!!
+     
+    #THESE DIFFERENT NOTATIONS ALL GIVE THE SAME NUMERICAL RESULTS!!!
 
     D2_lapse = (em4phi*(np.einsum('xia, xai->x',bar_gamma_UU, d2_lapse)
                         - np.einsum('xia, xkai, xk->x', bar_gamma_UU, bar_chris, d1_lapse)
                         - 2* np.einsum('xia, xa, xi->x', bar_gamma_UU, d1_lapse, d1_phi)
                         - 2* np.einsum('xia, xi, xa->x', bar_gamma_UU, d1_lapse, d1_phi)
                         + 6* np.einsum('xkl, xl, xk->x', bar_gamma_UU, d1_phi, d1_lapse))) 
-
-    D2_lapse2 = (em4phi*(np.einsum('xia, xai->x',bar_gamma_UU, d2_lapse)
-                        - np.einsum('xia, xkai, xk->x', bar_gamma_UU, bar_chris, d1_lapse)
-                        + 4* np.einsum('xia, xa, xi->x', bar_gamma_UU, d1_lapse, d1_phi)
-                        - 2* np.einsum('xia, xi, xa->x', bar_gamma_UU, d1_lapse, d1_phi)))
-    """
+                        
+    
 
     D2_lapse3 = (em4phi*(np.einsum('xia, xai->x',bar_gamma_UU, d2_lapse)
                         - np.einsum('xia, xkai, xk->x', bar_gamma_UU, bar_chris, d1_lapse)
@@ -166,9 +203,11 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     #\bar{A}_{ij} \bar{A}^{ij}
     Asquared = get_bar_A_squared(r, bssn_vars, background)
 
+    asquared_list.append(Asquared)
+
     line1 = lapse*(-four_thirds*Trace_M * 
                    (ilapse * dKdt_perp 
-                    + ilapse * D2_lapse3
+                    + ilapse * D2_lapse
                     - Asquared 
                     - one_third * K * K))
     
@@ -188,57 +227,48 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     dadt_perp = dadt_gb + (2.0/3.0) * bar_div_shift[:,np.newaxis,np.newaxis] * bssn_vars.a_LL
 
     #Term 5
-    bar_A_LL_d_Shift_U_symmetric = one_two*(np.einsum('xjk, xlj->xkl',bar_A_LL,d1_Shift_U)
-                                    + np.einsum('xjl, xkj->xkl',bar_A_LL,d1_Shift_U )) #ASSUMPTION: I made the indices after arrow symmetric [hence i changed their order myseflf]
+    #bar_A_LL_d_Shift_U_symmetric = one_two*(np.einsum('xjk, xlj->xkl',bar_A_LL,d1_Shift_U)+ np.einsum('xjl, xkj->xkl',bar_A_LL,d1_Shift_U )) 
 
     #Term 6
-    '''DkDl_lapse = (d2_lapse
+    DkDl_lapse = (d2_lapse
                   - np.einsum('xwkl,xw->xkl',bar_chris, d1_lapse)
                   - 2*np.einsum('xl, xk->xkl', d1_phi , d1_lapse) 
                   - 2*np.einsum('xk, xl->xkl', d1_phi , d1_lapse) 
                   + 2*np.einsum('xkl, xwd, xd, xw->xkl',bar_gamma_LL, bar_gamma_UU, d1_phi, d1_lapse))
     
-    DkDl_lapse_two = (d2_lapse
-                  - np.einsum('xwkl,xw->xkl',bar_chris, d1_lapse)
-                  - 2*np.einsum('xl, xk->xkl', d1_phi , d1_lapse) 
-                  - 2*np.einsum('xk, xl->xkl', d1_phi , d1_lapse) 
-                  #+ 2*np.einsum('xkl, xwd, xd, xw->xkl',bar_gamma_LL, bar_gamma_UU, d1_phi, d1_lapse)
-                  + 6*np.einsum('xk, xl->xkl',d1_lapse, d1_phi)) # line multiplied by zero ?
-       
-
-    DkDl_lapse_three = (d2_lapse
-                  - np.einsum('xwkl,xw->xkl',bar_chris, d1_lapse)
-                  + 4*np.einsum('xl, xk->xkl', d1_phi , d1_lapse) 
-                  - 2*np.einsum('xk, xl->xkl', d1_phi , d1_lapse))'''
-    
     # I don't get this term in my equations but this is what Katy wrote in bssnrhs.py
-    DkDl_lapse_Katy = (d2_lapse
-                  - np.einsum('xwkl,xw->xkl',bar_chris, d1_lapse)
-                  + 4*np.einsum('xl, xk->xkl', d1_phi , d1_lapse) 
-                  - 2*np.einsum('xk, xl->xkl', d1_phi , d1_lapse))
+    DkDl_lapse_Katy = -(- d2.lapse
+                      + np.einsum('xkij,xk->xij', bar_chris, d1.lapse)
+                      + 2.0 * np.einsum('xi,xj->xij', d1.phi, d1.lapse)
+                      + 2.0 * np.einsum('xj,xi->xij', d1.phi, d1.lapse))
     
-    '''print("DkDl_lapse: ", np.min(DkDl_lapse))
-    print("DkDl_lapse_two: ", np.min(DkDl_lapse_two))
-    print("DkDl_lapse_three: ", np.min(DkDl_lapse_three))
+    
+    '''
+    print("DkDl_lapse: ", np.min(DkDl_lapse))
+    print("DkDl_lapse_Katy: ", np.min(DkDl_lapse_Katy))
     print("- - - - - - - - - - ")
-    print("|DkDl_lapse1 - DkDl_lapse2|",np.abs(np.min(DkDl_lapse) - np.min(DkDl_lapse_two)))
-    print("|DkDl_lapse2 - DkDl_lapse3|",np.abs(np.min(DkDl_lapse_two) - np.min(DkDl_lapse_three)))
+    print("|DkDl_lapse - DkDl_lapse_Katy|",np.abs(np.min(DkDl_lapse) - np.min(DkDl_lapse_Katy)))
     print('_____________________')'''
 
     
-    # symmetrized it befor use
-    #DkDl_lapse_sym = one_two * (DkDl_lapse_three + DkDl_lapse_three.swapaxes(1,2))
+
 
     line2_term_1 =  8  * e4phi * np.einsum('xij, xij->x', TraceFree_M_UU , dadt_perp)
 
-    ## ## line 2 term 2 is set to zero, since we want to add the advection terms afterwards (all at the same time)
-    line2_term_2 = 0 * (16  * e4phi * np.einsum('xij, xij->x', TraceFree_M_UU , bar_A_LL_d_Shift_U_symmetric))
-    ## ##
+    #########################################################################################################
+    '''## ## line 2 term 2 is set to zero, since we want to add the advection terms afterwards (all at the same time)
+    bar_A_LL_d_Shift_U_symmetric = one_two*(np.einsum('xjk, xlj->xkl',bar_A_LL,d1_Shift_U)
+                                    + np.einsum('xjl, xkj->xkl',bar_A_LL,d1_Shift_U )) 
+    line2_term_2 = (16  * e4phi * np.einsum('xij, xij->x', TraceFree_M_UU , bar_A_LL_d_Shift_U_symmetric))'''
+    #########################################################################################################
 
-    line2_term_3 =  8  * np.einsum('xij, xij->x', TraceFree_M_UU , DkDl_lapse_Katy)
-
+    line2_term_3 =  8  * np.einsum('xij, xij->x', TraceFree_M_UU , DkDl_lapse)
+    
+    dadt_list.append(line2_term_1)
+    DkDl_lapse_Katy_list.append(line2_term_3)
+    
     # Normally there should be a (lapse*ilapse)* in front but removed it for computational reasons 
-    line2 = (line2_term_1 + line2_term_2 + line2_term_3)
+    line2 = (line2_term_1  + line2_term_3)
     
     LLine2.append(line2)
     
@@ -252,11 +282,17 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     line3_term1 = 8 * e4phi * np.einsum('xij, xij->x',TraceFree_M_UU, AkjAjl)
 
     line3_term2 = -two_thirds * 8 * e4phi * K *  np.einsum('xij, xij->x',TraceFree_M_UU, bar_A_LL)
-
+    
+    ############################################################################################################
     #### line 3 term 3 is set to zero, since we want to add the advection terms afterwards (all at the same time)
     '''bar_div_shiftr =  np.einsum('xii->x', d1_Shift_U) 
     line3_term3 = 0 * (two_thirds * 8 * e4phi * ilapse * bar_div_shiftr * np.einsum('xij, xij->x',TraceFree_M_UU, bar_A_LL))'''
-    ####
+    ############################################################################################################
+
+    ### DEBUG ###
+    ak_list.append(line3_term1)
+    klist.append(line3_term2)
+    ### DEBUG ### 
 
     line3 = lapse*(line3_term1 + line3_term2 )
 
@@ -265,75 +301,61 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     #________________________________________________________________________________________
     #Line 4   
 
-    '''D_L_A_LL = (e4phi[:, np.newaxis, np.newaxis, np.newaxis] 
+    D_L_A_LL = (e4phi[:, np.newaxis, np.newaxis, np.newaxis] 
                 * (4*np.einsum('xi, xjk->xijk',d1_phi,bar_A_LL) 
                    + a_times_d1_s + s_times_d1_a
                    - np.einsum('xlij, xlk-> xijk',bar_chris, bar_A_LL)
                    - 2*np.einsum('xj, xik->xijk',d1_phi, bar_A_LL) 
-                   - 2*np.einsum('xi, xjk-> xijk',d1_phi, bar_A_LL)
+                   - 4*np.einsum('xi, xjk-> xijk',d1_phi, bar_A_LL) # Changed to 4
                    + 2*np.einsum('xij, xlw, xw, xlk-> xijk', bar_gamma_LL, bar_gamma_UU, d1_phi, bar_A_LL)
                    - np.einsum('xlik, xjl-> xijk', bar_chris, bar_A_LL)
                    - 2*np.einsum('xk, xji-> xijk', d1_phi, bar_A_LL)
-                   - 2*np.einsum('xi, xjk-> xijk', d1_phi, bar_A_LL)
+                   # - 2*np.einsum('xi, xjk-> xijk', d1_phi, bar_A_LL)
                    + 2*np.einsum('xik, xlw, xw, xjl-> xijk', bar_gamma_LL, bar_gamma_UU, d1_phi, bar_A_LL))
                    )
     
-
-    D_L_A_LL2 = (e4phi[:, np.newaxis, np.newaxis, np.newaxis] 
-                * (4*np.einsum('xi, xjk->xijk',d1_phi,bar_A_LL) 
-                   + a_times_d1_s + s_times_d1_a
-                   - np.einsum('xlij, xlk-> xijk',bar_chris, bar_A_LL)
-                   - 2*np.einsum('xj, xik->xijk',d1_phi, bar_A_LL) 
-                   + 4*np.einsum('xi, xjk-> xijk',d1_phi, bar_A_LL)
-
-                   - np.einsum('xlik, xjl-> xijk', bar_chris, bar_A_LL)
-                   - 2*np.einsum('xk, xji-> xijk', d1_phi, bar_A_LL)
-                   + 4*np.einsum('xi, xjk-> xijk', d1_phi, bar_A_LL)))'''
-    
-    D_L_A_LL3 = (e4phi[:, np.newaxis, np.newaxis, np.newaxis] 
-                * (4*np.einsum('xi, xjk->xijk',d1_phi,bar_A_LL) 
-                   + a_times_d1_s + s_times_d1_a
-                   - np.einsum('xlij, xlk-> xijk',bar_chris, bar_A_LL)
-                   - 2*np.einsum('xj, xik->xijk',d1_phi, bar_A_LL) 
-
-                   - np.einsum('xlik, xjl-> xijk', bar_chris, bar_A_LL)
-                   - 2*np.einsum('xk, xji-> xijk', d1_phi, bar_A_LL)
-
-                   + 8*np.einsum('xi, xjk-> xijk', d1_phi, bar_A_LL)))
-    
-    
     ##### CHECKUP #######
-    '''print("D_L_A_LL1: ", np.min(D_L_A_LL))
-    print("D_L_A_LL2: ", np.min(D_L_A_LL2))
-    print("D_L_A_LL3: ", np.min(D_L_A_LL3))
-    print("- - - - - - - - - - ")
-    print("|D_L_A_LL1 - D_L_A_LL2|",np.abs(np.min(D_L_A_LL) - np.min(D_L_A_LL2)))
-    print("|D_L_A_LL2 - D_L_A_LL3|",np.abs(np.min(D_L_A_LL2) - np.min(D_L_A_LL3)))
-    print('_____________________')'''
+   
     ##### CHECKUP #######
     
     D_U_A_UU = (em4phi[:, np.newaxis, np.newaxis, np.newaxis]
                 * em4phi[:, np.newaxis, np.newaxis, np.newaxis]
                 * em4phi[:, np.newaxis, np.newaxis, np.newaxis] 
-                * np.einsum('xjb, xkc, xia, xabc->xijk',bar_gamma_UU,bar_gamma_UU,bar_gamma_UU,D_L_A_LL3))
+                * np.einsum('xjb, xkc, xia, xabc->xijk',bar_gamma_UU,bar_gamma_UU,bar_gamma_UU,D_L_A_LL))
+    
 
-    line4 = lapse*(-4*(2*np.einsum('xijk, xijk->x',D_L_A_LL3 , D_U_A_UU)
-                            - 2*np.einsum('xijk, xjik->x',D_L_A_LL3 , D_U_A_UU)
+    line4 = lapse*(-4*(2*np.einsum('xijk, xijk->x',D_L_A_LL , D_U_A_UU)
+                            - 2*np.einsum('xijk, xjik->x',D_L_A_LL , D_U_A_UU)
                             - four_thirds* np.einsum('xi, xi->x',d1_K, N_U)
                             - four_thirds*one_third* np.einsum('xi, xai ,xa->x',d1_K,bar_gamma_UU, d1_K )
                             - 2 * N_squared))
     
+    #### DEBUG ################################################################
+    D_LLL_D_UUU = 2*np.einsum('xijk, xijk->x',D_L_A_LL , D_U_A_UU) - 2*np.einsum('xijk, xjik->x',D_L_A_LL , D_U_A_UU)
+    D_1 = 2*np.einsum('xijk, xijk->x',D_L_A_LL , D_U_A_UU)
+    D_2 = 2*np.einsum('xijk, xjik->x',D_L_A_LL , D_U_A_UU)
+    lastterm = - four_thirds*one_third* np.einsum('xi, xai ,xa->x',d1_K,bar_gamma_UU, d1_K )
+    lastterm2 = - four_thirds* np.einsum('xi, xi->x',d1_K, N_U)
+
+    D_difference.append(D_LLL_D_UUU)
+    D_1list.append(D_1)
+    D_2list.append(D_2)
+    d1K_N_U.append(- 2 * N_squared)
+    finalfour.append(lastterm)
+    finalfour2.append(lastterm2)
     LLine4.append(line4)
+    
+    # Calculating the ham constraint to verify that trace of Mij is equal to it 
+    bar_R = get_trace(bar_Rij, bar_gamma_UU)
+    Ham = (two_thirds * K * K - Asquared
+                      + em4phi * ( bar_R
+                                   - 8.0 * np.einsum('xij,xi,xj->x', bar_gamma_UU, d1_phi, d1_phi)
+                                   - 8.0 * np.einsum('xij,xij->x', bar_gamma_UU, d2_phi)
+                                   + 8.0 * np.einsum('xij,xkij,xk->x', bar_gamma_UU, bar_chris, d1_phi)))
+    #### DEBUG ################################################################
     
     L_GB = (line1 + line2 + line3 + line4)
 
-    #### DEBUG #####
-
-    
-    
-    
-    
-    #### DEBUG #####
-
+    Hamilton.append(Ham)
     Gaur.append(L_GB)
     return L_GB
