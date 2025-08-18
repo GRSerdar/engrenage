@@ -149,32 +149,45 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
                     + one_third * K[:, np.newaxis, np.newaxis] * bssn_vars.a_LL #inverse scaled
                     - r_AikAjk)) # invers scaled'''
     
-    r_M_LL = (r_Rij  # In stead of Rij 
+    r_M_LL = ( r_Rij  # In stead of Rij 
            + e4phi[:, np.newaxis, np.newaxis] *(two_nine * r_bar_gamma_LL* K[:, np.newaxis, np.newaxis] * K[:, np.newaxis, np.newaxis]
                     + one_third * K[:, np.newaxis, np.newaxis] * bssn_vars.a_LL #inverse scaled
                     - r_AikAjk)) # invers scaled
     
-    M_LL = background.scaling_matrix * r_M_LL
+    # M_LL = background.scaling_matrix * r_M_LL
 
 
     # Trace M_ij
     # Trace_M = np.einsum("xij, xij->x",bar_gamma_UU, M_LL)
-    Trace_M = get_trace(r_M_LL, r_bar_gamma_UU)
 
-    # Adding to list 
+    #Trace_M = get_trace(r_M_LL, r_bar_gamma_UU)
+    
+    
+    # THIS IS THE CORRECT TRACE !!!!!!!!! BECAUSE IT IS THE SAME AS THE HAM CONSTRAINT!!
+    # So actually raising it with physical metric 
+    Trace_M = em4phi*get_trace(r_M_LL, r_bar_gamma_UU)
     Trace_M_list.append(Trace_M)
 
     # Trace Free M_{ij}
-    TraceFree_M_LL = M_LL - one_third * bar_gamma_LL * Trace_M[:, np.newaxis, np.newaxis]
+    # r_TraceFree_M_LL = r_M_LL - one_third * r_bar_gamma_LL * Trace_M[:, np.newaxis, np.newaxis]
+
+    r_M_UU = em4phi[:, np.newaxis, np.newaxis]*em4phi[:, np.newaxis, np.newaxis]*np.einsum("xia, xjb, xab->xij",r_bar_gamma_UU,r_bar_gamma_UU , r_M_LL)
 
     #TraceFree_M_LL = background.scaling_matrix * r_TraceFree_M_LL
     # Rescaled gamma bar trace
     #TraceFree_M_LL = M_LL - one_third * r_bar_gamma_LL * Trace_M[:, np.newaxis, np.newaxis]
     
     # Trace Free M^{ij}
-    TraceFree_M_UU = np.einsum('xik, xjl, xij->xkl',bar_gamma_UU, bar_gamma_UU, TraceFree_M_LL)
+    
+    r_TraceFree_M_UU = r_M_UU - one_third * r_bar_gamma_UU * Trace_M[:, np.newaxis, np.newaxis]
 
-    #TraceFree_M_UU = background.scaling_matrix * r_TraceFree_M_UU
+    TraceFree_M_UU = background.inverse_scaling_matrix * r_TraceFree_M_UU
+
+
+
+    # IT has to do something with the scaling...
+
+
 
     #________________________________________________________________________________________
     # Construction of N_i
