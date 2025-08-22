@@ -101,8 +101,9 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
     # now calculate the rhs values for bssn vars for the main grid (boundaries handled below)
 
     # Get the bssn rhs - see bssnrhs.py
+    Advection_tuple = (advec.K, advec.a_LL)
     get_bssn_rhs(bssn_rhs, r, bssn_vars, d1, d2, background, my_emtensor)
-    matter_rhs = matter.get_matter_rhs(r, advec.a_LL, bssn_vars, d1, d2, bssn_rhs, grid,  background) 
+    matter_rhs = matter.get_matter_rhs(r, Advection_tuple, bssn_vars, d1, d2, bssn_rhs, grid,  background) 
 
     # Set the gauge evolution for the lapse and shift
     # eta is the 1+log slicing damping coefficient - of order 1/M_adm of spacetime
