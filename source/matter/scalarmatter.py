@@ -4,7 +4,7 @@ from core.grid import *
 from bssn.bssnstatevariables import *
 from bssn.bssnvars import *
 from bssn.tensoralgebra import *
-from bssn.gaussbonnet import * #compute_L_GB
+from bssn.gaussbonnet_scaled import * #compute_L_GB
 
 
 class ScalarMatter :
@@ -76,7 +76,7 @@ class ScalarMatter :
         return scalar_emtensor
 
     #def get_matter_rhs(self, r, bssn_vars, bssn_d1, background) : # In the new one below i changed the signature of the function (to not recalculate things i already calculated.)
-    def get_matter_rhs(self, r, advecer,  bssn_vars, bssn_d1, bssn_d2, bssn_rhs, grid, background):
+    def get_matter_rhs(self, r,  bssn_vars, bssn_d1, bssn_d2, bssn_rhs, grid, background):
 
         assert self.matter_vars_set, 'Matter vars not set'        
         
@@ -104,7 +104,7 @@ class ScalarMatter :
         ########################################################################################################
         # MODIFICATION FOR SCALAR GAUS BONNET PART (extra term to dvdt)
 
-        L_GB = compute_L_GB(bssn_vars, advecer, bssn_rhs, bssn_d1, bssn_d2, grid, background)
+        L_GB = compute_L_GB(bssn_vars, bssn_rhs, bssn_d1, bssn_d2, grid, background)
 
         chi = np.exp(-4.0* bssn_vars.phi) 
         lambda_GB = 0.05

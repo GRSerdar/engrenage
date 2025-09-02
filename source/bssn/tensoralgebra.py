@@ -290,7 +290,6 @@ def get_hat_D_bar_gamma_LL(r, h_LL, d1_h_dx, background) :
 
 
 # \bar A_ik \bar A^k_j = gamma^kl A_ik A_jl
-
 def get_AikAkj(bar_A_LL, bar_gamma_UU):
 
     return np.einsum('xkl,xik,xlj->xij', bar_gamma_UU, bar_A_LL, bar_A_LL)

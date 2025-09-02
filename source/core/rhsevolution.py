@@ -101,28 +101,27 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
     # now calculate the rhs values for bssn vars for the main grid (boundaries handled below)
 
     # Get the bssn rhs - see bssnrhs.py
-    Advection_tuple = (advec.K, advec.a_LL)
     get_bssn_rhs(bssn_rhs, r, bssn_vars, d1, d2, background, my_emtensor)
-    matter_rhs = matter.get_matter_rhs(r, Advection_tuple, bssn_vars, d1, d2, bssn_rhs, grid,  background) 
+    matter_rhs = matter.get_matter_rhs(r, bssn_vars, d1, d2, bssn_rhs, grid,  background)
 
+    ########################################################################################################
+    # GAUGE EVOLUTION
+    ########################################################################################################
     # Set the gauge evolution for the lapse and shift
     # eta is the 1+log slicing damping coefficient - of order 1/M_adm of spacetime
+    
     eta = 1.0
     bssn_rhs.b_U     += 0.75 * bssn_rhs.lambda_U - eta * bssn_vars.b_U
     bssn_rhs.shift_U += bssn_vars.b_U
     bssn_rhs.lapse   += - 2.0 * bssn_vars.lapse * bssn_vars.K    
 
-    # We call the get rhs function here (before some of the advection terms are added)
-    # But we still call it after bssn_rhs since we are using dKdt and dadt (so that they are not zero)
-        
-    # Add advection to bssn time derivatives (this is the bit coming from the shift in the Lie derivative)
-    # One sided stencils are used which helps stability
-    # Note the additional advection terms from rescaling
-
     ########################################################################################################
     # ADVECTION
     ########################################################################################################
-    
+    # Add advection to bssn time derivatives (this is the bit coming from the shift in the Lie derivative)
+    # One sided stencils are used which helps stability
+    # Note the additional advection terms from rescaling  
+   
     # Scalars first
     bssn_rhs.phi += np.einsum('xj,xj->x', background.inverse_scaling_vector * bssn_vars.shift_U,   advec.phi)
     bssn_rhs.K   += np.einsum('xj,xj->x', background.inverse_scaling_vector * bssn_vars.shift_U,   advec.K)
