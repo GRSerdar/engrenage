@@ -5,6 +5,7 @@ from bssn.bssnstatevariables import *
 from bssn.bssnvars import *
 from bssn.tensoralgebra import *
 from bssn.gaussbonnet_scaled import * #compute_L_GB
+#from bssn.gaussbonnet import * #compute_L_GB
 
 
 class ScalarMatter :
