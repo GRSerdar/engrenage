@@ -56,6 +56,8 @@ MTFsquared6 = []
 MTFsquared7 = []
 MTFsquared8 = []
 
+DiAjkDiAjk = []
+
 def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     r = grid.r
     N = grid.num_points
@@ -135,10 +137,12 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     r_TraceFree_M_UU = background.scaling_matrix * TraceFree_M_UU
 
     # \bar{D}_j \bar{A}_i^j
-    '''bar_D_A_LU = (  np.einsum("xjm, xjim->xi",bar_gamma_UU, a_times_d1_s)
+    '''
+    bar_D_A_LU = (  np.einsum("xjm, xjim->xi",bar_gamma_UU, a_times_d1_s)
                   + np.einsum("xjm, xjim->xi", bar_gamma_UU, s_times_d1_a)
                   - np.einsum("xjm, xkji, xkm->xi", bar_gamma_UU, bar_chris, bar_A_LL)
-                  - np.einsum("xjm, xkjm, xik->xi", bar_gamma_UU, bar_chris, bar_A_LL))'''
+                  - np.einsum("xjm, xkjm, xik->xi", bar_gamma_UU, bar_chris, bar_A_LL))
+       '''
     
     # N_i (This should not have a conformal factor in front)
     N_L = em4phi[:,np.newaxis]*(  np.einsum("xjm, xjim->xi",bar_gamma_UU, a_times_d1_s)
@@ -176,7 +180,7 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     Line1 = (-four_thirds*Trace_M* dKdt_perp 
              -four_thirds*Trace_M* D2_lapse 
              -four_thirds*Trace_M* bssn_vars.lapse * Asquared 
-             +four_thirds*Trace_M* one_third*bssn_vars.lapse * bssn_vars.K*bssn_vars.K)
+             +four_thirds*Trace_M* one_third * bssn_vars.lapse * bssn_vars.K * bssn_vars.K)
 
     ###########################################################################################################################
     ###########################################################################################################################
@@ -194,7 +198,7 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     A_LL_d_shift_symmetric = one_two * (np.einsum("xjk, xlj->xkl",bar_A_LL, d1_Shift_U) + np.einsum("xjl, xkj->xkl",bar_A_LL, d1_Shift_U))
     '''
 
-    # D_k D_l lapse
+    # D_k D_l lapse 
     DkDl_lapse = (d2.lapse - np.einsum("xmkl, xm->xkl", bar_chris, d1.lapse)
                   - 2 * np.einsum("xl, xk->xkl", d1.phi, d1.lapse)
                   - 2 * np.einsum("xk, xl->xkl", d1.phi, d1.lapse)
@@ -238,17 +242,47 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     # Construction of line 4
 
     # D_i A_jk
+
+    '''
     D_L_A_LL = e4phi[:, np.newaxis, np.newaxis, np.newaxis] *(s_times_d1_a + a_times_d1_s
                       - np.einsum("xkab, xkc->xabc",bar_chris, bar_A_LL)
                       - np.einsum("xkac, xbk->xabc",bar_chris, bar_A_LL)
                       - 2*np.einsum("xb, xac->xabc",d1.phi, bar_A_LL) 
                       + 2 *np.einsum("xab, xkl, xl, xkc->xabc",bar_gamma_LL, bar_gamma_UU, d1.phi, bar_A_LL )
                       - 2 *np.einsum("xc, xba->xabc",d1.phi, bar_A_LL)
-                      + 2 *np.einsum("xac, xkl, xl, xbk->xabc",bar_gamma_LL, bar_gamma_UU, d1.phi, bar_A_LL))
+                      + 2 *np.einsum("xac, xkl, xl, xbk->xabc",bar_gamma_LL, bar_gamma_UU, d1.phi, bar_A_LL))'''
     
+
+    # Correct
+    '''
+    D_L_A_LL = e4phi[:, np.newaxis, np.newaxis, np.newaxis]*(+ a_times_d1_s + s_times_d1_a
+                                                             - np.einsum("xmij, xmk->xijk",bar_chris, bar_A_LL)
+                                                             - np.einsum("xmik, xjm->xijk",bar_chris, bar_A_LL)
+                                                             - 2*np.einsum("xj, xik->xijk",d1.phi, bar_A_LL)
+                                                             - 2*np.einsum("xk, xji->xijk",d1.phi, bar_A_LL)
+                                                             + 2*np.einsum("xij, xml, xl, xmk->xijk",bar_gamma_LL, bar_gamma_UU, d1.phi, bar_A_LL)
+                                                             + 2*np.einsum("xik, xml, xl, xjm->xijk",bar_gamma_LL, bar_gamma_UU, d1.phi, bar_A_LL))
+      '''
+    
+
+    D_L_A_LL = e4phi[:, np.newaxis, np.newaxis, np.newaxis]*(+ np.einsum("xijk->xijk",a_times_d1_s)
+                                                             + np.einsum("xijk->xijk",s_times_d1_a)
+                                                             - np.einsum("xmij, xmk->xijk",bar_chris, bar_A_LL)
+                                                             - np.einsum("xmik, xjm->xijk",bar_chris, bar_A_LL)
+                                                             - 2*np.einsum("xj, xik->xijk",d1.phi, bar_A_LL)
+                                                             - 2*np.einsum("xk, xji->xijk",d1.phi, bar_A_LL)
+                                                             + 2*np.einsum("xij, xml, xl, xmk->xijk",bar_gamma_LL, bar_gamma_UU, d1.phi, bar_A_LL)
+                                                             + 2*np.einsum("xik, xml, xl, xjm->xijk",bar_gamma_LL, bar_gamma_UU, d1.phi, bar_A_LL))
+
     # D^i A^jk
-    D_U_A_UU = (em4phi[:, np.newaxis, np.newaxis, np.newaxis] * em4phi[:, np.newaxis, np.newaxis, np.newaxis] * em4phi[:, np.newaxis, np.newaxis, np.newaxis]
-                * np.einsum("xai, xbj, xkc, xabc->xijk",bar_gamma_UU, bar_gamma_UU, bar_gamma_UU, D_L_A_LL))
+    D_U_A_UU = ((em4phi[:, np.newaxis, np.newaxis, np.newaxis] **3)
+                * (np.einsum("xai, xbj, xkc, xabc->xijk",bar_gamma_UU, bar_gamma_UU, bar_gamma_UU, D_L_A_LL)))
+    
+    # D^i bar A^jk (tryin out if A could be barred in stead)
+    '''
+    D_U_A_UU = em4phi[:, np.newaxis, np.newaxis, np.newaxis] * (8*np.einsum("xia, xjb, xkc, xi, xjk-> xabc",bar_gamma_UU, bar_gamma_UU, bar_gamma_UU, d1.phi, bar_A_LL)
+                                                                + np.einsum("xia, xjb, xkc, xijk-> xabc",bar_gamma_UU, bar_gamma_UU, bar_gamma_UU, D_L_A_LL))
+       '''
     
     # D_i A_jk * D^[j A^j]k
     Product = ( np.einsum("xijk, xijk->x", D_L_A_LL, D_U_A_UU) - np.einsum("xijk, xjik->x", D_L_A_LL, D_U_A_UU))
@@ -263,19 +297,20 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     
     # Fourth line in the Gauss Bonnet term
 
-    # put a (-1) in front due to a suspected minus sign error in the equations  + a factor of e4phi !!!!!!!
-    Line4 = - e4phi*((-4)*bssn_vars.lapse*2*Product 
+    # put a (-1) in front due to a suspected minus sign error in the equations  + a factor of e4phi ?
+    Line4 =  ((-4)*bssn_vars.lapse*2*Product 
              + (4)*bssn_vars.lapse*four_thirds * D_L_K_N_U 
              + (4)*bssn_vars.lapse*four_thirds * one_third * D_L_K_D_U_K 
              + (4)*bssn_vars.lapse*2*N_squared)
     
-    '''
-    Line4 =-( (-4) * 2 * bssn_vars.lapse * np.einsum("xijk, xijk->x",D_L_A_LL, D_U_A_UU)
-             + (4) * 2 * bssn_vars.lapse * np.einsum("xijk, xjik->x",D_L_A_LL, D_U_A_UU)
-             + (4)*bssn_vars.lapse*four_thirds * D_L_K_N_U 
-             + (4)*bssn_vars.lapse*four_thirds * one_third * D_L_K_D_U_K 
-             + (4)*bssn_vars.lapse*2*N_squared)
-    '''
+    ###########################################################################################################################
+    ##########################################################################################################################
+    # Playground For mathematica vs pyhton...
+
+    DiAjkDiAjk.append((np.einsum("xijk, xijk->x", D_L_A_LL, D_U_A_UU)))
+
+
+
 
 
     ###########################################################################################################################
@@ -301,10 +336,10 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     line3_3.append(8*e4phi * two_thirds * np.einsum("xkl, xjj, xkl->x",TraceFree_M_UU, d1_Shift_U, bar_A_LL))
 
     # line4_1.append(((-4) * 2 * np.einsum("xijk, xijk->x",D_L_A_LL, D_U_A_UU) + (4) * 2 * np.einsum("xijk, xjik->x",D_L_A_LL, D_U_A_UU)))
-    line4_1.append(e4phi*((-4)*bssn_vars.lapse*2*Product))
-    line4_2.append(e4phi*((4)*bssn_vars.lapse*four_thirds * D_L_K_N_U ))
-    line4_3.append(e4phi*((4)*bssn_vars.lapse*four_thirds * one_third * D_L_K_D_U_K ))
-    line4_4.append(e4phi*((4)*bssn_vars.lapse*2*N_squared))
+    line4_1.append(((-4)*bssn_vars.lapse*2*Product))
+    line4_2.append(((4)*bssn_vars.lapse*four_thirds * D_L_K_N_U ))
+    line4_3.append(((4)*bssn_vars.lapse*four_thirds * one_third * D_L_K_D_U_K ))
+    line4_4.append(((4)*bssn_vars.lapse*2*N_squared))
 
     MTFsquared.append(np.einsum('xij, xij->x', TraceFree_M_LL, TraceFree_M_UU))
     MTFsquared2.append(np.einsum('xij, xij->x', TraceFree_M_LL, bar_A_UU))

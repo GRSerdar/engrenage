@@ -153,7 +153,7 @@ def get_test_state_2(grid: Grid, background):
 # (thanks to Ulrich Sperhake for suggesting this test)
 def get_test_state_bh(grid: Grid, background):
     
-    assert grid.NUM_VARS == 14, "NUM_VARS not correct for bssn + no matter"
+    assert grid.NUM_VARS == 14, "NUM_VARS not correct for bssn + scalar matter"
     
     # For readability
     r = grid.r

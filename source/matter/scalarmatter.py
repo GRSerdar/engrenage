@@ -91,7 +91,7 @@ class ScalarMatter :
         bar_gamma_UU = get_bar_gamma_UU(r, bssn_vars.h_LL, background)
         
 
-        dudt =  bssn_vars.lapse * self.v #this is just lapse times first derivative of dphi/dt (=v)
+        dudt =  bssn_vars.lapse * self.v #this is just lapse times first derivative of du/dt (=v)
         dvdt =  (bssn_vars.lapse * bssn_vars.K * self.v 
                  + 2.0 * bssn_vars.lapse * em4phi * np.einsum('xij,xi,xj->x', bar_gamma_UU, bssn_d1.phi, self.d1_u)
                  +       bssn_vars.lapse * em4phi * np.einsum('xij,xij->x', bar_gamma_UU, self.d2_u)
@@ -114,7 +114,6 @@ class ScalarMatter :
         function_of_lambda= (lambda_GB)/(1+np.exp(-100*(chi-chi0)))
 
         dvdt +=  function_of_lambda * L_GB
-
         ########################################################################################################
         ########################################################################################################
         
