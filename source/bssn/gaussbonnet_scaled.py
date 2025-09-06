@@ -57,6 +57,13 @@ MTFsquared7 = []
 MTFsquared8 = []
 
 DiAjkDiAjk = []
+DDalpha_DDalpha = []
+D2lapser = []
+Asqua = []
+KKK = []
+dkldkllapse = []
+TFM = []
+
 
 def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     r = grid.r
@@ -72,6 +79,10 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     # Barred Metric and extrinsic curvature tensors
     bar_gamma_LL = get_bar_gamma_LL(r, bssn_vars.h_LL, background)
     bar_gamma_UU = get_bar_gamma_UU(r, bssn_vars.h_LL, background)
+
+    # Physical Metrics (since we will need a few times in this file)
+    gamma_UU = em4phi[:,np.newaxis,np.newaxis] *bar_gamma_UU
+    gamma_LL = e4phi[:,np.newaxis,np.newaxis] * bar_gamma_LL
 
     bar_A_LL = get_bar_A_LL(r, bssn_vars, background) 
     bar_A_UU = get_bar_A_UU(r, bssn_vars, background) 
@@ -116,10 +127,18 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
            + 4*np.einsum('xi, xj->xij', d1.phi, d1.phi)
            - 4*np.einsum('xij, xlm, xl, xm->xij', bar_gamma_LL, bar_gamma_UU, d1.phi, d1.phi))
     
+    '''
+    # Rij from Katy
+    Rij = (- 2.0 * d2.phi
+           + 4.0 * np.einsum('xi,xj->xij', d1.phi, d1.phi)
+           + 2.0 * np.einsum('xkij,xk->xij', bar_chris, d1.phi)
+           + bar_Rij)
+         '''
+
     # \bar{A}_ij \bar{A}_j^k
     AikAjk = np.einsum('xik, xkb, xjb->xij', bar_A_LL, bar_gamma_UU, bar_A_LL)
 
-    # M_ij
+    # M_ij [ASK Llibert which gamma should be insinde ?]
     M_LL = (Rij
            + e4phi[:, np.newaxis, np.newaxis] *(two_nine * bar_gamma_LL* bssn_vars.K[:, np.newaxis, np.newaxis] * bssn_vars.K[:, np.newaxis, np.newaxis]
                     + one_third * bssn_vars.K[:, np.newaxis, np.newaxis] * bar_A_LL - AikAjk)) 
@@ -127,11 +146,13 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     # M
     Trace_M = em4phi * get_trace(M_LL, bar_gamma_UU)
 
-    # TraceFree_M_LL
-    TraceFree_M_LL = M_LL - one_third * bar_gamma_LL * Trace_M[:, np.newaxis, np.newaxis]
+    # TraceFree_M_LL #[Changed the bar_gamma_LL --> gamma_LL]
+    '''TraceFree_M_LL = M_LL - one_third * bar_gamma_LL * Trace_M[:, np.newaxis, np.newaxis]'''
+    TraceFree_M_LL = M_LL - one_third * gamma_LL * Trace_M[:, np.newaxis, np.newaxis]
 
     # TraceFree_M_UU
-    TraceFree_M_UU = em4phi[:,np.newaxis,np.newaxis]*em4phi[:,np.newaxis,np.newaxis]*np.einsum("xia, xjb, xab->xij",bar_gamma_UU, bar_gamma_UU, TraceFree_M_LL)
+    '''TraceFree_M_UU = em4phi[:,np.newaxis,np.newaxis]*em4phi[:,np.newaxis,np.newaxis]*np.einsum("xia, xjb, xab->xij",bar_gamma_UU, bar_gamma_UU, TraceFree_M_LL)'''
+    TraceFree_M_UU = np.einsum("xia, xjb, xab->xij",gamma_UU, gamma_UU, TraceFree_M_LL)
 
     # rescaled TraceFree_M_UU
     r_TraceFree_M_UU = background.scaling_matrix * TraceFree_M_UU
@@ -165,11 +186,18 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     # Importing dKdt from bssn_rhs (reusing it in stead of recalculating it)
     dKdt_perp =  bssn_rhs.K
 
-    # D_i D^i lapse
+    '''
     D2_lapse = em4phi*(  np.einsum("xai, xai->x",bar_gamma_UU, d2.lapse)
                        - np.einsum("xai, xkai, xk->x",bar_gamma_UU, bar_chris, d1.lapse)
                        - 2 * np.einsum("xai, xi, xa->x",bar_gamma_UU, d1.phi, d1.lapse)
                        + 2 * np.einsum("xij, xkl, xl, xk->x", bar_gamma_LL, bar_gamma_UU, d1.phi, d1.lapse))
+       ''' #YOU SHOULD CHECK WHY BOTH DEFINITIONS ARE DIFFERENT.
+    
+    # D_i D^i lapse # The correct expression that I copied from bssnrhs.py
+    D2_lapse = em4phi*(np.einsum('xij,xij->x', bar_gamma_UU, d2.lapse)
+                  - np.einsum('xij,xkij,xk->x', bar_gamma_UU, bar_chris, d1.lapse)
+                  + 2.0 * np.einsum('xij,xi,xj->x', bar_gamma_UU, d1.lapse, d1.phi))
+
 
     # bar A_ij bar A^ij
     Asquared = get_bar_A_squared(r, bssn_vars, background)
@@ -198,11 +226,21 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     A_LL_d_shift_symmetric = one_two * (np.einsum("xjk, xlj->xkl",bar_A_LL, d1_Shift_U) + np.einsum("xjl, xkj->xkl",bar_A_LL, d1_Shift_U))
     '''
 
-    # D_k D_l lapse 
-    DkDl_lapse = (d2.lapse - np.einsum("xmkl, xm->xkl", bar_chris, d1.lapse)
+    
+    '''
+    # D_k D_l lapse  (My derivation, why does it differ from Katy?)
+    DkDl_lapse = (d2.lapse 
+                  - np.einsum("xmkl, xm->xkl", bar_chris, d1.lapse)
                   - 2 * np.einsum("xl, xk->xkl", d1.phi, d1.lapse)
                   - 2 * np.einsum("xk, xl->xkl", d1.phi, d1.lapse)
                   + 2 * np.einsum("xkl, xmp, xp, xm->xkl", bar_gamma_LL,bar_gamma_UU, d1.phi, d1.lapse))
+   '''
+    
+    # D_k D_l lapse Correct
+    DkDl_lapse = (d2.lapse
+                  - np.einsum('xkij,xk->xij', bar_chris, d1.lapse)
+                  - 2.0 * np.einsum('xi,xj->xij', d1.phi, d1.lapse)
+                  - 2.0 * np.einsum('xj,xi->xij', d1.phi, d1.lapse))
 
     # Second line in the Gauss Bonnet term
     '''
@@ -263,9 +301,8 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
                                                              + 2*np.einsum("xij, xml, xl, xmk->xijk",bar_gamma_LL, bar_gamma_UU, d1.phi, bar_A_LL)
                                                              + 2*np.einsum("xik, xml, xl, xjm->xijk",bar_gamma_LL, bar_gamma_UU, d1.phi, bar_A_LL))
       '''
-    
-
-    D_L_A_LL = e4phi[:, np.newaxis, np.newaxis, np.newaxis]*(+ np.einsum("xijk->xijk",a_times_d1_s)
+   
+    D_L_A_LL = e4phi[:, np.newaxis, np.newaxis, np.newaxis]*(np.einsum("xijk->xijk",a_times_d1_s)
                                                              + np.einsum("xijk->xijk",s_times_d1_a)
                                                              - np.einsum("xmij, xmk->xijk",bar_chris, bar_A_LL)
                                                              - np.einsum("xmik, xjm->xijk",bar_chris, bar_A_LL)
@@ -275,14 +312,10 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
                                                              + 2*np.einsum("xik, xml, xl, xjm->xijk",bar_gamma_LL, bar_gamma_UU, d1.phi, bar_A_LL))
 
     # D^i A^jk
-    D_U_A_UU = ((em4phi[:, np.newaxis, np.newaxis, np.newaxis] **3)
-                * (np.einsum("xai, xbj, xkc, xabc->xijk",bar_gamma_UU, bar_gamma_UU, bar_gamma_UU, D_L_A_LL)))
-    
-    # D^i bar A^jk (tryin out if A could be barred in stead)
-    '''
-    D_U_A_UU = em4phi[:, np.newaxis, np.newaxis, np.newaxis] * (8*np.einsum("xia, xjb, xkc, xi, xjk-> xabc",bar_gamma_UU, bar_gamma_UU, bar_gamma_UU, d1.phi, bar_A_LL)
-                                                                + np.einsum("xia, xjb, xkc, xijk-> xabc",bar_gamma_UU, bar_gamma_UU, bar_gamma_UU, D_L_A_LL))
-       '''
+    D_U_A_UU = ((np.einsum("xai, xbj, xkc, xabc->xijk",gamma_UU, gamma_UU, gamma_UU, D_L_A_LL)))
+
+    # Contraction 
+    DiAjkDiAjk_ = np.einsum('xijk,xijk->x', D_L_A_LL, D_U_A_UU)
     
     # D_i A_jk * D^[j A^j]k
     Product = ( np.einsum("xijk, xijk->x", D_L_A_LL, D_U_A_UU) - np.einsum("xijk, xjik->x", D_L_A_LL, D_U_A_UU))
@@ -292,7 +325,6 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     D_L_K_N_U = np.einsum("xai, xi, xa->x",bar_gamma_UU,d1.K, N_L)
 
     # D_i K D_i K
-    # D_L_K_D_U_K = em4phi * np.einsum("xai, xi, xa->x", bar_gamma_UU, d1.K, d1.K)
     D_L_K_D_U_K = np.einsum("xai, xi, xa->x", bar_gamma_UU, d1.K, d1.K)
     
     # Fourth line in the Gauss Bonnet term
@@ -308,10 +340,16 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     # Playground For mathematica vs pyhton...
 
     DiAjkDiAjk.append((np.einsum("xijk, xijk->x", D_L_A_LL, D_U_A_UU)))
+    #D2lapser.append(D2_lapse)
+    
+    DDalpha_DDalpha.append(np.einsum("xij, xij->x", DkDl_lapse, DkDl_lapse))
+    Asqua.append(Asquared)
+    
+    D2lapser.append(D2_lapse)
+    KKK.append(D_L_K_D_U_K)
 
-
-
-
+    dkldkllapse.append((np.einsum("xij, xai, xbj, xab->x",DkDl_lapse,gamma_UU,gamma_UU, DkDl_lapse)))
+    TFM.append(np.einsum("xij, xij->x", TraceFree_M_LL, TraceFree_M_UU))
 
     ###########################################################################################################################
     ##########################################################################################################################
