@@ -63,6 +63,12 @@ Asqua = []
 KKK = []
 dkldkllapse = []
 TFM = []
+NS = []
+
+RicciScalar = []
+RicciScalar2  = []
+barar = []
+Contract = []
 
 
 def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
@@ -119,6 +125,14 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
                                               Delta_U, Delta_ULL, Delta_LLL, 
                                               bar_gamma_UU, bar_gamma_LL, background)
     
+    '''
+    # Rij from Katy
+    Rij2 = (- 2.0 * d2.phi
+           + 4.0 * np.einsum('xi,xj->xij', d1.phi, d1.phi)
+           + 2.0 * np.einsum('xkij,xk->xij', bar_chris, d1.phi)
+           + bar_Rij)
+       '''
+    
     Rij = (bar_Rij 
            - 2*d2.phi
            + 2*np.einsum('xlij,xl->xij', bar_chris, d1.phi)
@@ -127,13 +141,6 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
            + 4*np.einsum('xi, xj->xij', d1.phi, d1.phi)
            - 4*np.einsum('xij, xlm, xl, xm->xij', bar_gamma_LL, bar_gamma_UU, d1.phi, d1.phi))
     
-    '''
-    # Rij from Katy
-    Rij = (- 2.0 * d2.phi
-           + 4.0 * np.einsum('xi,xj->xij', d1.phi, d1.phi)
-           + 2.0 * np.einsum('xkij,xk->xij', bar_chris, d1.phi)
-           + bar_Rij)
-         '''
 
     # \bar{A}_ij \bar{A}_j^k
     AikAjk = np.einsum('xik, xkb, xjb->xij', bar_A_LL, bar_gamma_UU, bar_A_LL)
@@ -144,7 +151,7 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
                     + one_third * bssn_vars.K[:, np.newaxis, np.newaxis] * bar_A_LL - AikAjk)) 
 
     # M
-    Trace_M = em4phi * get_trace(M_LL, bar_gamma_UU)
+    Trace_M = get_trace(M_LL, gamma_UU)
 
     # TraceFree_M_LL #[Changed the bar_gamma_LL --> gamma_LL]
     '''TraceFree_M_LL = M_LL - one_third * bar_gamma_LL * Trace_M[:, np.newaxis, np.newaxis]'''
@@ -166,18 +173,18 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
        '''
     
     # N_i (This should not have a conformal factor in front)
-    N_L = em4phi[:,np.newaxis]*(  np.einsum("xjm, xjim->xi",bar_gamma_UU, a_times_d1_s)
-                                + np.einsum("xjm, xjim->xi", bar_gamma_UU, s_times_d1_a)
-                                - np.einsum("xjm, xkji, xkm->xi", bar_gamma_UU, bar_chris, bar_A_LL)
-                                - np.einsum("xjm, xkjm, xik->xi", bar_gamma_UU, bar_chris, bar_A_LL) 
-                                + 6 * np.einsum("xj, xjb, xib->xi",d1.phi, bar_gamma_UU, bar_A_LL)
-                                - two_thirds * d1.K)
+    N_L = (np.einsum("xjm, xjim->xi",bar_gamma_UU, a_times_d1_s)
+           + np.einsum("xjm, xjim->xi", bar_gamma_UU, s_times_d1_a)
+           - np.einsum("xjm, xkji, xkm->xi", bar_gamma_UU, bar_chris, bar_A_LL)
+           - np.einsum("xjm, xkjm, xik->xi", bar_gamma_UU, bar_chris, bar_A_LL) 
+           + 6 * np.einsum("xj, xjb, xib->xi",d1.phi, bar_gamma_UU, bar_A_LL)
+           - two_thirds * d1.K)
 
-    # N^i
+    # N^i (it is actuallyt he upper index N which corresponds to the momentum constraint)
     N_U = em4phi[:, np.newaxis] * np.einsum("xij, xj->xi", bar_gamma_UU, N_L)
 
     # N_i N^i
-    N_squared = em4phi* np.einsum('xi, xai, xa->x', N_L,bar_gamma_UU ,N_L)
+    N_squared = np.einsum('xi, xai, xa->x', N_L,gamma_UU ,N_L)
 
     ###########################################################################################################################
     ###########################################################################################################################
@@ -216,25 +223,6 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
 
     # Importing dadt from bssn_rhs (reusing it in stead ofecalculating it)
     dadt_perp = bssn_rhs.a_LL
-
-    '''
-    # Advection term
-    div_shift =  np.einsum('xii->x', d1_Shift_U)
-    #div_shift += np.einsum('xiij,xj->x', bar_chris, Shift_U)
-
-    # A_jk d_l beta^j + A_jl d_k beta^j (symmetric)
-    A_LL_d_shift_symmetric = one_two * (np.einsum("xjk, xlj->xkl",bar_A_LL, d1_Shift_U) + np.einsum("xjl, xkj->xkl",bar_A_LL, d1_Shift_U))
-    '''
-
-    
-    '''
-    # D_k D_l lapse  (My derivation, why does it differ from Katy?)
-    DkDl_lapse = (d2.lapse 
-                  - np.einsum("xmkl, xm->xkl", bar_chris, d1.lapse)
-                  - 2 * np.einsum("xl, xk->xkl", d1.phi, d1.lapse)
-                  - 2 * np.einsum("xk, xl->xkl", d1.phi, d1.lapse)
-                  + 2 * np.einsum("xkl, xmp, xp, xm->xkl", bar_gamma_LL,bar_gamma_UU, d1.phi, d1.lapse))
-   '''
     
     # D_k D_l lapse Correct
     DkDl_lapse = (d2.lapse
@@ -242,14 +230,7 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
                   - 2.0 * np.einsum('xi,xj->xij', d1.phi, d1.lapse)
                   - 2.0 * np.einsum('xj,xi->xij', d1.phi, d1.lapse))
 
-    # Second line in the Gauss Bonnet term
-    '''
-    Line2 = (8*e4phi * np.einsum("xkl, xkl->x", r_TraceFree_M_UU, dadt_perp)
-             + 8* e4phi * np.einsum("xkl, xjk, xlj->x",TraceFree_M_UU, bar_A_LL,d1_Shift_U)
-             + 8* e4phi * np.einsum("xkl, xjl, xkj->x", TraceFree_M_UU, bar_A_LL, d1_Shift_U)
-             + 8* np.einsum("xkl, xkl->x", TraceFree_M_UU, DkDl_lapse))
-    '''
-    
+    # There is a difference between divshift and just the one derivative of shift...
     Line2 = (8*e4phi * np.einsum("xkl, xkl->x", TraceFree_M_UU, background.scaling_matrix * dadt_perp) 
             + 8* e4phi * np.einsum("xkl, xjk, xlj->x",TraceFree_M_UU, bar_A_LL,d1_Shift_U)
             + 8* e4phi * np.einsum("xkl, xjl, xkj->x", TraceFree_M_UU, bar_A_LL, d1_Shift_U)
@@ -258,22 +239,11 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     ###########################################################################################################################
     ###########################################################################################################################
     # Construction of line 3
-    '''
-    # bar A_kj bar A^j_l
-    AkjAjl = np.einsum("xmj, xkj, xml->xkl",bar_gamma_UU, bar_A_LL, bar_A_LL)
-
-    # Prefactor
-    PreFac = bssn_vars.lapse * bssn_vars.K - div_shift
-
     
-    Line3 = (8*e4phi * bssn_vars.lapse * np.einsum("xkl, xkl->x",r_TraceFree_M_UU , r_AkjAjl)
-             - 8*two_thirds * e4phi * PreFac * np.einsum("xkl, xkl->x", r_TraceFree_M_UU, bssn_vars.a_LL))
-    '''
-    
-    # Third line in the Gauss Bonnet term
-    Line3 = (8*e4phi * bssn_vars.lapse * np.einsum("xkl, xmj, xkj, xml->x",TraceFree_M_UU, bar_gamma_UU, bar_A_LL, bar_A_LL)
-             -8*e4phi * bssn_vars.lapse * two_thirds * bssn_vars.K * np.einsum("xkl, xkl->x",TraceFree_M_UU, bar_A_LL)
-             +8*e4phi * two_thirds * np.einsum("xkl, xjj, xkl->x",TraceFree_M_UU, d1_Shift_U, bar_A_LL))
+    div_shift =  np.einsum('xii->x', d1_Shift_U)+ np.einsum('xiij,xj->x', bar_chris, Shift_U)
+
+    Line3 = 8*e4phi * (bssn_vars.lapse *np.einsum("xkl, xmj, xkj, xml->x",TraceFree_M_UU, bar_gamma_UU, bar_A_LL, bar_A_LL)
+                       -two_thirds*(bssn_vars.lapse * bssn_vars.K -div_shift)*np.einsum("xij,xij->x",TraceFree_M_UU,bar_A_LL))
 
     ###########################################################################################################################
     ###########################################################################################################################
@@ -351,6 +321,21 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     dkldkllapse.append((np.einsum("xij, xai, xbj, xab->x",DkDl_lapse,gamma_UU,gamma_UU, DkDl_lapse)))
     TFM.append(np.einsum("xij, xij->x", TraceFree_M_LL, TraceFree_M_UU))
 
+    NS.append(N_squared)
+    RicciScalar.append(np.einsum("xij, xij->x",Rij,gamma_UU))
+    # RicciScalar2.append(np.einsum("xij, xij->x",Rij2,gamma_UU))
+
+    bar_D_L_bar_A_LL = (a_times_d1_s + s_times_d1_a
+                        - np.einsum("xmij, xmk->xijk",bar_chris, bar_A_LL)
+                        - np.einsum("xmik, xjm->xikj",bar_chris, bar_A_LL))
+    
+    U_bar_D_L_bar_A_LL = (np.einsum("xai, xbj, xkc, xijk->xabc",bar_gamma_UU, bar_gamma_UU, bar_gamma_UU,bar_D_L_bar_A_LL))
+
+    contract = np.einsum("xijk, xijk->x",bar_D_L_bar_A_LL, U_bar_D_L_bar_A_LL)
+    Contract.append(contract)
+
+    
+
     ###########################################################################################################################
     ##########################################################################################################################
     # Lists to store variables for plotting
@@ -411,7 +396,11 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     Hamilton.append(Ham)
     Momentum.append(Mom)
     Trace_M_list.append(Trace_M)
-    Ennn.append(N_L)
+    Ennn.append(N_U) #Note that the upper index N is equivalent to the momentum constraint.
+    barar.append(bar_R)
+
+    # Does not give zero, but rather a 10^-17 value
+    #print(np.min(np.einsum("xij, xij->x",TraceFree_M_UU, gamma_LL)))
 
     L_GB = Line1 + Line2 + Line3 + Line4
     Gaur.append(L_GB)
