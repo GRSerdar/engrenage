@@ -4,8 +4,7 @@ from core.grid import *
 from bssn.bssnstatevariables import *
 from bssn.bssnvars import *
 from bssn.tensoralgebra import *
-from bssn.gaussbonnet_scaled import * #compute_L_GB
-#from bssn.gaussbonnet import * #compute_L_GB
+from bssn.gaussbonnet_working import * #compute_L_GB
 
 
 class ScalarMatter :
@@ -77,7 +76,7 @@ class ScalarMatter :
         return scalar_emtensor
 
     #def get_matter_rhs(self, r, bssn_vars, bssn_d1, background) : # In the new one below i changed the signature of the function (to not recalculate things i already calculated.)
-    def get_matter_rhs(self, r,  bssn_vars, bssn_d1, bssn_d2, bssn_rhs, grid, background):
+    def get_matter_rhs(self, r, bssn_vars, bssn_d1, bssn_d2, bssn_rhs, grid, background):
 
         assert self.matter_vars_set, 'Matter vars not set'        
         
@@ -113,7 +112,7 @@ class ScalarMatter :
         chi0 = 0.05
         function_of_lambda= (lambda_GB)/(1+np.exp(-100*(chi-chi0)))
 
-        dvdt +=  function_of_lambda * L_GB
+        dvdt +=  function_of_lambda *bssn_vars.lapse * L_GB
         ########################################################################################################
         ########################################################################################################
         

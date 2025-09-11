@@ -58,13 +58,6 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
     determinant_bar_gamma = get_det_bar_gamma(r, bssn_vars.h_LL, background)
     determinant_hat_gamma = background.det_hat_gamma
     rescaling_factor = np.power(determinant_bar_gamma / determinant_hat_gamma, -1./3)
-
-    #________________________________________________________________________________________
-    # DEBUGGING
-
-
-
-    #________________________________________________________________________________________
     
     # Check it is set correctly at first timestep
     error = np.abs(rescaling_factor - 1.0)
@@ -88,10 +81,7 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
     # Calculate matter quantities and rhs
     
     # Matter sources, must be defined in matter class
-    my_emtensor  = matter.get_emtensor(r, bssn_vars, background)
-
-    #matter_rhs = matter.get_matter_rhs(r, bssn_vars, d1, background)  
-    #matter_rhs = matter.get_matter_rhs(r, bssn_vars, d1, d2, bssn_rhs, grid,  background)     
+    my_emtensor  = matter.get_emtensor(r, bssn_vars, background)  
 
     if (timing_on) :     
         check_time_3 = time.time()

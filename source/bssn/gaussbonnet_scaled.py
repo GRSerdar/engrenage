@@ -125,14 +125,6 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
                                               Delta_U, Delta_ULL, Delta_LLL, 
                                               bar_gamma_UU, bar_gamma_LL, background)
     
-    '''
-    # Rij from Katy
-    Rij2 = (- 2.0 * d2.phi
-           + 4.0 * np.einsum('xi,xj->xij', d1.phi, d1.phi)
-           + 2.0 * np.einsum('xkij,xk->xij', bar_chris, d1.phi)
-           + bar_Rij)
-       '''
-    
     Rij = (bar_Rij 
            - 2*d2.phi
            + 2*np.einsum('xlij,xl->xij', bar_chris, d1.phi)
@@ -154,23 +146,13 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     Trace_M = get_trace(M_LL, gamma_UU)
 
     # TraceFree_M_LL #[Changed the bar_gamma_LL --> gamma_LL]
-    '''TraceFree_M_LL = M_LL - one_third * bar_gamma_LL * Trace_M[:, np.newaxis, np.newaxis]'''
     TraceFree_M_LL = M_LL - one_third * gamma_LL * Trace_M[:, np.newaxis, np.newaxis]
 
     # TraceFree_M_UU
-    '''TraceFree_M_UU = em4phi[:,np.newaxis,np.newaxis]*em4phi[:,np.newaxis,np.newaxis]*np.einsum("xia, xjb, xab->xij",bar_gamma_UU, bar_gamma_UU, TraceFree_M_LL)'''
     TraceFree_M_UU = np.einsum("xia, xjb, xab->xij",gamma_UU, gamma_UU, TraceFree_M_LL)
 
     # rescaled TraceFree_M_UU
     r_TraceFree_M_UU = background.scaling_matrix * TraceFree_M_UU
-
-    # \bar{D}_j \bar{A}_i^j
-    '''
-    bar_D_A_LU = (  np.einsum("xjm, xjim->xi",bar_gamma_UU, a_times_d1_s)
-                  + np.einsum("xjm, xjim->xi", bar_gamma_UU, s_times_d1_a)
-                  - np.einsum("xjm, xkji, xkm->xi", bar_gamma_UU, bar_chris, bar_A_LL)
-                  - np.einsum("xjm, xkjm, xik->xi", bar_gamma_UU, bar_chris, bar_A_LL))
-       '''
     
     # N_i (This should not have a conformal factor in front)
     N_L = (np.einsum("xjm, xjim->xi",bar_gamma_UU, a_times_d1_s)
@@ -192,19 +174,11 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     
     # Importing dKdt from bssn_rhs (reusing it in stead of recalculating it)
     dKdt_perp =  bssn_rhs.K
-
-    '''
-    D2_lapse = em4phi*(  np.einsum("xai, xai->x",bar_gamma_UU, d2.lapse)
-                       - np.einsum("xai, xkai, xk->x",bar_gamma_UU, bar_chris, d1.lapse)
-                       - 2 * np.einsum("xai, xi, xa->x",bar_gamma_UU, d1.phi, d1.lapse)
-                       + 2 * np.einsum("xij, xkl, xl, xk->x", bar_gamma_LL, bar_gamma_UU, d1.phi, d1.lapse))
-       ''' #YOU SHOULD CHECK WHY BOTH DEFINITIONS ARE DIFFERENT.
     
     # D_i D^i lapse # The correct expression that I copied from bssnrhs.py
     D2_lapse = em4phi*(np.einsum('xij,xij->x', bar_gamma_UU, d2.lapse)
                   - np.einsum('xij,xkij,xk->x', bar_gamma_UU, bar_chris, d1.lapse)
                   + 2.0 * np.einsum('xij,xi,xj->x', bar_gamma_UU, d1.lapse, d1.phi))
-
 
     # bar A_ij bar A^ij
     Asquared = get_bar_A_squared(r, bssn_vars, background)
