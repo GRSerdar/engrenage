@@ -141,9 +141,6 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
 
     # TraceFree_M_UU
     TraceFree_M_UU = np.einsum("xia, xjb, xab->xij",gamma_UU, gamma_UU, TraceFree_M_LL)
-
-    # rescaled TraceFree_M_UU
-    r_TraceFree_M_UU = background.scaling_matrix * TraceFree_M_UU
     
     # N_i (This should not have a conformal factor in front)
     N_L = (np.einsum("xjm, xjim->xi",bar_gamma_UU, a_times_d1_s)
@@ -166,7 +163,7 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     # Importing dKdt from bssn_rhs (reusing it in stead of recalculating it) | substract an advection term from here as well
     # I added the advection terms but in mathematica they are subtracted
     
-    dKdt_perp =  bssn_rhs.K # - np.einsum('xj,xj->x', Shift_U, advec.K)
+    dKdt_perp =  bssn_rhs.K 
     
     #dKdt_perp =  bssn_rhs.K + np.einsum("xi,xi->x",Shift_U,d1.K)
 
@@ -224,6 +221,7 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
                                                              + np.einsum("xijk->xijk",s_times_d1_a)
                                                              - np.einsum("xmij, xmk->xijk",bar_chris, bar_A_LL)
                                                              - np.einsum("xmik, xjm->xijk",bar_chris, bar_A_LL)
+                                                             #+ 4.0 * np.einsum("xi, xjk -> xijk", d1.phi, bar_A_LL) # Newly added term
                                                              - 2*np.einsum("xj, xik->xijk",d1.phi, bar_A_LL)
                                                              - 2*np.einsum("xk, xji->xijk",d1.phi, bar_A_LL)
                                                              + 2*np.einsum("xij, xml, xl, xmk->xijk",bar_gamma_LL, bar_gamma_UU, d1.phi, bar_A_LL)
@@ -247,8 +245,9 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
 
     Line3 = -4*(2*(Product)-four_thirds*D_L_K_N_U - four_thirds*one_third*D_L_K_D_U_K-2*N_squared)
     
-    L_GB = 0*Line1 + Line2 + 0*Line3
+    L_GB = Line1 + Line2 + Line3
     Gaur.append(L_GB)
+    Contract.append(np.einsum("xijk, xijk->x", D_L_A_LL, D_U_A_UU))
     return L_GB
 
     ###########################################################################################################################
