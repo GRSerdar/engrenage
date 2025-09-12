@@ -77,6 +77,18 @@ ContractDrApp = []
 ContractDtArt = []
 ContractDpArp = []
 
+Contract5_ = []
+Contract6_ = []
+Contract7_ = []
+Contract8_ = []
+
+Deriv = []
+Deriv2 = []
+barAtt = []
+barApp = []
+
+Matrix = []
+
 
 
 def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
@@ -193,10 +205,7 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     ###########################################################################################################################
     # Construction of line 2
 
-    # Importing dadt from bssn_rhs (reusing it in stead ofecalculating it) | Advection (corresponds with the first term of the lie derivative)
-    # dadt_perp = bssn_rhs.a_LL + Advec
-    # dAdt_perp = dAdt - (np.einsum("xi,xijk->xjk",Shift_U,s_times_d1_a)+np.einsum("xi,xijk->xjk",Shift_U,a_times_d1_s))
-
+    # dAdt_perp 
     dAdt_perp = (background.scaling_matrix * bssn_rhs.a_LL) 
     
     # Covariant derivative of the Shift^i
@@ -224,8 +233,14 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     # - 2*ilapse*e4phi * np.einsum("xkl, xkl->x",TraceFree_M_UU,SymmetricObject)
     ###########################################################################################################################
     ###########################################################################################################################
+    # Construction of line 3
 
-    D_L_A_LL = e4phi[:, np.newaxis, np.newaxis, np.newaxis]*(a_times_d1_s + s_times_d1_a
+    # To deal with the scaling matrix indices being jki in stead of ijk 
+    a_times_d1_s = np.moveaxis(a_times_d1_s, 3, 1)   # xbca -> xabc
+    s_times_d1_a = np.moveaxis(s_times_d1_a, 3, 1)   # xbca -> xabc
+
+    D_L_A_LL = e4phi[:, np.newaxis, np.newaxis, np.newaxis]*(  a_times_d1_s
+                                                             + s_times_d1_a
                                                              - np.einsum("xmij, xmk->xijk",bar_chris, bar_A_LL)
                                                              - np.einsum("xmik, xjm->xijk",bar_chris, bar_A_LL)
                                                              - 2*np.einsum("xj, xik->xijk",d1.phi, bar_A_LL)
@@ -253,8 +268,6 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     Contract2.append(np.einsum("xijk, xjik->x", D_L_A_LL, D_U_A_UU))
 
     ### DEBUG ###
-    Dcontract1_full = np.einsum("xijk,xijk->x", D_L_A_LL, D_U_A_UU)
-
     # Extract the five spherical-symmetry blocks used in Mathematica:
     ir, it, ip = i_r, i_t, i_p
 
@@ -268,7 +281,19 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     ContractDrAtt.append(DrAtt*DrAttUUU)
     ContractDrApp.append(DrApp*DrAppUUU)
     ContractDtArt.append(DtArt*DtArtUUU)
-    ContractDpArp.append(DpArp*DpArpUUU)   
+    ContractDpArp.append(DpArp*DpArpUUU)  
+
+    Contract5_.append(DtArt*DrAttUUU)
+    Contract6_.append(DrAtt*DtArtUUU)
+    Contract7_.append(DpArp*DrAppUUU)
+    Contract8_.append(DrApp*DpArpUUU)
+
+    De = a_times_d1_s + s_times_d1_a
+    Deriv.append(s_times_d1_a[:, it, it,ir])
+    Deriv2.append(a_times_d1_s[:, it, it,ir])
+
+    barAtt.append(bssn_vars.a_LL[:, it, it])
+    barApp.append(bar_A_LL[:, ip, ip])
 
     ### DEBUG ###
     return L_GB
