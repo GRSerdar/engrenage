@@ -122,6 +122,9 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     s_times_d1_a = background.scaling_matrix[:,:,:,np.newaxis] * d1.a_LL
     a_times_d1_s = bssn_vars.a_LL[:,:,:,np.newaxis] * background.d1_scaling_matrix
 
+    a_times_d1_s = np.moveaxis(a_times_d1_s, 3, 1)   # xbca -> xabc
+    s_times_d1_a = np.moveaxis(s_times_d1_a, 3, 1)   # xbca -> xabc
+
     # Compute connections
     Delta_U, Delta_ULL, Delta_LLL = get_tensor_connections(r, bssn_vars.h_LL, d1.h_LL, background)
     bar_chris = get_bar_christoffel(r, Delta_ULL, background) #\bar \christoffel (that you will use basicly everywhere)
@@ -236,8 +239,6 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     # Construction of line 3
 
     # To deal with the scaling matrix indices being jki in stead of ijk 
-    a_times_d1_s = np.moveaxis(a_times_d1_s, 3, 1)   # xbca -> xabc
-    s_times_d1_a = np.moveaxis(s_times_d1_a, 3, 1)   # xbca -> xabc
 
     D_L_A_LL = e4phi[:, np.newaxis, np.newaxis, np.newaxis]*(  a_times_d1_s
                                                              + s_times_d1_a
