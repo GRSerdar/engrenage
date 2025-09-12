@@ -69,6 +69,14 @@ RicciScalar = []
 RicciScalar2  = []
 barar = []
 Contract = []
+Contract2 = []
+
+ContractDrArr = []
+ContractDrAtt = []
+ContractDrApp = []
+ContractDtArt = []
+ContractDpArp = []
+
 
 
 def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
@@ -217,11 +225,9 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     ###########################################################################################################################
     ###########################################################################################################################
 
-    D_L_A_LL = e4phi[:, np.newaxis, np.newaxis, np.newaxis]*(np.einsum("xijk->xijk",a_times_d1_s)
-                                                             + np.einsum("xijk->xijk",s_times_d1_a)
+    D_L_A_LL = e4phi[:, np.newaxis, np.newaxis, np.newaxis]*(a_times_d1_s + s_times_d1_a
                                                              - np.einsum("xmij, xmk->xijk",bar_chris, bar_A_LL)
                                                              - np.einsum("xmik, xjm->xijk",bar_chris, bar_A_LL)
-                                                             #+ 4.0 * np.einsum("xi, xjk -> xijk", d1.phi, bar_A_LL) # Newly added term
                                                              - 2*np.einsum("xj, xik->xijk",d1.phi, bar_A_LL)
                                                              - 2*np.einsum("xk, xji->xijk",d1.phi, bar_A_LL)
                                                              + 2*np.einsum("xij, xml, xl, xmk->xijk",bar_gamma_LL, bar_gamma_UU, d1.phi, bar_A_LL)
@@ -230,17 +236,13 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     # D^i A^jk
     D_U_A_UU = ((np.einsum("xai, xbj, xkc, xabc->xijk",gamma_UU, gamma_UU, gamma_UU, D_L_A_LL)))
 
-    # D_i A_jk * D^[j A^j]k
+    # D_i A_jk * D^[j A^i]k
     Product = ( np.einsum("xijk, xijk->x", D_L_A_LL, D_U_A_UU) - np.einsum("xijk, xjik->x", D_L_A_LL, D_U_A_UU))
 
     # D_i K N^i
-    # these should be raise by non barred gammas
-    # D_L_K_N_U = np.einsum("xai, xi, xa->x",bar_gamma_UU,d1.K, N_L)
     D_L_K_N_U = np.einsum("xai, xi, xa->x",gamma_UU,d1.K, N_L)
 
     # D_i K D_i K
-    # these should be raise by non barred gammas
-    # D_L_K_D_U_K = np.einsum("xai, xi, xa->x", bar_gamma_UU, d1.K, d1.K)
     D_L_K_D_U_K = np.einsum("xai, xi, xa->x", gamma_UU, d1.K, d1.K)
 
     Line3 = -4*(2*(Product)-four_thirds*D_L_K_N_U - four_thirds*one_third*D_L_K_D_U_K-2*N_squared)
@@ -248,6 +250,27 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     L_GB = Line1 + Line2 + Line3
     Gaur.append(L_GB)
     Contract.append(np.einsum("xijk, xijk->x", D_L_A_LL, D_U_A_UU))
+    Contract2.append(np.einsum("xijk, xjik->x", D_L_A_LL, D_U_A_UU))
+
+    ### DEBUG ###
+    Dcontract1_full = np.einsum("xijk,xijk->x", D_L_A_LL, D_U_A_UU)
+
+    # Extract the five spherical-symmetry blocks used in Mathematica:
+    ir, it, ip = i_r, i_t, i_p
+
+    DrArr     = D_L_A_LL[:, ir, ir, ir];   DrArrUUU = D_U_A_UU[:, ir, ir, ir]
+    DrAtt     = D_L_A_LL[:, ir, it, it];   DrAttUUU = D_U_A_UU[:, ir, it, it]
+    DrApp     = D_L_A_LL[:, ir, ip, ip];   DrAppUUU = D_U_A_UU[:, ir, ip, ip]
+    DtArt     = D_L_A_LL[:, it, ir, it];   DtArtUUU = D_U_A_UU[:, it, ir, it]
+    DpArp     = D_L_A_LL[:, ip, ir, ip];   DpArpUUU = D_U_A_UU[:, ip, ir, ip]
+
+    ContractDrArr.append(DrArr*DrArrUUU)
+    ContractDrAtt.append(DrAtt*DrAttUUU)
+    ContractDrApp.append(DrApp*DrAppUUU)
+    ContractDtArt.append(DtArt*DtArtUUU)
+    ContractDpArp.append(DpArp*DpArpUUU)   
+
+    ### DEBUG ###
     return L_GB
 
     ###########################################################################################################################
