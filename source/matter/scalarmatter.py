@@ -112,7 +112,8 @@ class ScalarMatter :
         chi0 = 0.05
         function_of_lambda= (lambda_GB)/(1+np.exp(-100*(chi-chi0)))
 
-        dvdt +=  function_of_lambda *bssn_vars.lapse * L_GB
+        # dvdt +=  function_of_lambda *bssn_vars.lapse * L_GB
+        dvdt +=  function_of_lambda * bssn_vars.lapse * L_GB
         ########################################################################################################
         ########################################################################################################
         

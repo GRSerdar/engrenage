@@ -14,82 +14,6 @@ two_nine = 2.0/9.0
 third_two = 3.0/2.0
 
 Gaur = []
-Hamilton = []
-Momentum = []
-Trace_M_list = []
-Ennn = []
-D_L_K_N_U_list = []
-D_L_K_D_U_K_list = []
-
-line1_ = []
-line2_ = []
-line3_ = []
-line4_ = []
-
-line1_1 = []
-line1_2 = []
-line1_3 = []
-line1_4 = []
-
-line2_1 = []
-line2_2 = []
-line2_3 = []
-line2_4 = []
-
-line3_1 = []
-line3_2 = []
-line3_3 = []
-line3_4 = []
-
-
-line4_1 = []
-line4_2 = []
-line4_3 = []
-line4_4 = []
-
-MTFsquared = [] 
-MTFsquared2 = [] 
-MTFsquared3 = []
-MTFsquared4 = []
-MTFsquared5 = []
-MTFsquared6 = []
-MTFsquared7 = []
-MTFsquared8 = []
-
-DiAjkDiAjk = []
-DDalpha_DDalpha = []
-D2lapser = []
-Asqua = []
-KKK = []
-dkldkllapse = []
-TFM = []
-NS = []
-
-RicciScalar = []
-RicciScalar2  = []
-barar = []
-Contract = []
-Contract2 = []
-
-ContractDrArr = []
-ContractDrAtt = []
-ContractDrApp = []
-ContractDtArt = []
-ContractDpArp = []
-
-Contract5_ = []
-Contract6_ = []
-Contract7_ = []
-Contract8_ = []
-
-Deriv = []
-Deriv2 = []
-barAtt = []
-barApp = []
-
-Matrix = []
-
-
 
 def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     r = grid.r
@@ -122,6 +46,7 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     s_times_d1_a = background.scaling_matrix[:,:,:,np.newaxis] * d1.a_LL
     a_times_d1_s = bssn_vars.a_LL[:,:,:,np.newaxis] * background.d1_scaling_matrix
 
+    # To deal with the scaling matrix indices being jki in stead of ijk 
     a_times_d1_s = np.moveaxis(a_times_d1_s, 3, 1)   # xbca -> xabc
     s_times_d1_a = np.moveaxis(s_times_d1_a, 3, 1)   # xbca -> xabc
 
@@ -183,9 +108,7 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     ###########################################################################################################################
     # Construction of Line 1 
     
-    # Importing dKdt from bssn_rhs (reusing it in stead of recalculating it) | substract an advection term from here as well
-    # I added the advection terms but in mathematica they are subtracted
-    
+    # Importing dKdt from bssn_rhs (reusing it in stead of recalculating it)    
     dKdt_perp =  bssn_rhs.K 
     
     #dKdt_perp =  bssn_rhs.K + np.einsum("xi,xi->x",Shift_U,d1.K)
@@ -228,17 +151,10 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
                 + ilapse * np.einsum("xkl, xkl->x", TraceFree_M_UU, DkDl_lapse)
                 + e4phi*(np.einsum("xkl,xkl->x",TraceFree_M_UU,bar_A_LL_A_UL)
                          -two_thirds*(bssn_vars.K - ilapse * div_shift)*np.einsum("xkl,xkl->x",TraceFree_M_UU,bar_A_LL))))
-    
-    # Extra 
 
-    # Symmetric object that corresponds with the last two terms of the lie derivative 
-    # SymmetricObject =  np.einsum("xjk, xlj->xkl",bar_A_LL,d1_Shift_U) + np.einsum("xjl,xkj->xlk",bar_A_LL, d1_Shift_U)
-    # - 2*ilapse*e4phi * np.einsum("xkl, xkl->x",TraceFree_M_UU,SymmetricObject)
     ###########################################################################################################################
     ###########################################################################################################################
     # Construction of line 3
-
-    # To deal with the scaling matrix indices being jki in stead of ijk 
 
     D_L_A_LL = e4phi[:, np.newaxis, np.newaxis, np.newaxis]*(  a_times_d1_s
                                                              + s_times_d1_a
@@ -265,11 +181,10 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     
     L_GB = Line1 + Line2 + Line3
     Gaur.append(L_GB)
-    Contract.append(np.einsum("xijk, xijk->x", D_L_A_LL, D_U_A_UU))
-    Contract2.append(np.einsum("xijk, xjik->x", D_L_A_LL, D_U_A_UU))
 
     ### DEBUG ###
     # Extract the five spherical-symmetry blocks used in Mathematica:
+    '''
     ir, it, ip = i_r, i_t, i_p
 
     DrArr     = D_L_A_LL[:, ir, ir, ir];   DrArrUUU = D_U_A_UU[:, ir, ir, ir]
@@ -295,7 +210,7 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
 
     barAtt.append(bssn_vars.a_LL[:, it, it])
     barApp.append(bar_A_LL[:, ip, ip])
-
+    '''
     ### DEBUG ###
     return L_GB
 
