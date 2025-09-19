@@ -99,11 +99,19 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
     ########################################################################################################
     # Set the gauge evolution for the lapse and shift
     # eta is the 1+log slicing damping coefficient - of order 1/M_adm of spacetime
-    
+    ''' Working standard gauge 
     eta = 1.0
     bssn_rhs.b_U     += 0.75 * bssn_rhs.lambda_U - eta * bssn_vars.b_U
     bssn_rhs.shift_U += bssn_vars.b_U
-    bssn_rhs.lapse   += - 2.0 * bssn_vars.lapse * bssn_vars.K    
+    bssn_rhs.lapse   += - 2.0 * bssn_vars.lapse * bssn_vars.K  
+    '''
+    
+    # Gauge adjusted for cosmology
+    eta = 1.0
+    bssn_rhs.b_U     += 0.75 * bssn_rhs.lambda_U - eta * bssn_vars.b_U
+    bssn_rhs.shift_U += bssn_vars.b_U
+    bssn_rhs.lapse   += - 2.0 * bssn_vars.lapse * bssn_vars.K  
+
 
     ########################################################################################################
     # ADVECTION
@@ -126,10 +134,6 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
     
     advec_a_LL = get_tensor_advection(r, bssn_vars.a_LL, advec.a_LL, bssn_vars.shift_U, d1.shift_U, background)
     bssn_rhs.a_LL += advec_a_LL
-    
-    # Extra advection terms 
-    '''bar_div_shift = get_bar_div_shift(r, bssn_vars, d1, background)  
-    bssn_rhs.a_LL -= (2.0/3.0) * bar_div_shift[:,np.newaxis,np.newaxis] * bssn_vars.a_LL'''
 
     ########################################################################################################
     ########################################################################################################

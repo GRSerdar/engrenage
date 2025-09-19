@@ -1,13 +1,13 @@
-#FinalGausBonnetter
 # bssnrhs.py
 # as in Etienne https://arxiv.org/abs/1712.07658v2
 # see also Baumgarte https://arxiv.org/abs/1211.6632 for the eqns with matter
 
 import numpy as np
 from bssn.tensoralgebra import *
+from bssn.gaussbonnet_working import * #compute_L_GB objects
 
 # phi is the (exponential) conformal factor, that is \gamma_ij = e^{4\phi) \bar gamma_ij
-def get_bssn_rhs(bssn_rhs, r, bssn_vars, d1, d2, background, emtensor) :
+def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, emtensor) :
 
     ####################################################################################################
     # Get all the useful quantities that will be used in the rhs
@@ -15,19 +15,22 @@ def get_bssn_rhs(bssn_rhs, r, bssn_vars, d1, d2, background, emtensor) :
     #safe_phi = np.clip(bssn_vars.phi, -20, 20)
     #em4phi = np.exp(-4.0*safe_phi)    
 
-    em4phi = np.exp(-4.0*bssn_vars.phi)    
+    # Constant factors needed in Modified Gauge (for modified gravity)
+    # In the case you want to work in standard GR, just set these to zero.
+    a = 0.2
+    b = 0.4
 
+    em4phi = np.exp(-4.0*bssn_vars.phi)    
 
     bar_gamma_LL = get_bar_gamma_LL(r, bssn_vars.h_LL, background)
     bar_gamma_UU = get_bar_gamma_UU(r, bssn_vars.h_LL, background)
+    gamma_UU = em4phi[:,np.newaxis,np.newaxis] *bar_gamma_UU
     
     # The rescaled connections Delta^i, Delta^i_jk and Delta_ijk
     Delta_U, Delta_ULL, Delta_LLL  = get_tensor_connections(r, bssn_vars.h_LL, d1.h_LL, background)
     
     # \bar \Gamma^i_jk
     bar_chris = get_bar_christoffel(r, Delta_ULL, background)
-
-
 
    # rescaled shift in terms of scaling factors and bssn_vars.shift_U
     Shift_U = background.inverse_scaling_vector * bssn_vars.shift_U
@@ -48,7 +51,18 @@ def get_bssn_rhs(bssn_rhs, r, bssn_vars, d1, d2, background, emtensor) :
     bar_A_squared = get_bar_A_squared(r, bssn_vars, background) 
     bar_A_LL = get_bar_A_LL(r, bssn_vars, background)
     bar_A_UU = get_bar_A_UU(r, bssn_vars, background)
-    
+
+    ########################################################################################################
+    # Import Extra Objects to implement modified Harmonic Gauge
+
+    M_LL = compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background)[1] #idx=1 corresponds with M_LL
+    N_L = compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background)[2] #idx=2 corresponds with N_L
+    Trace_M = get_trace(M_LL, gamma_UU)
+
+    EMtensor = matter.get_emtensor(r, bssn_vars, d1, d2, bssn_rhs, grid, background)
+    rho = EMtensor.rho
+    S_L = EMtensor.Si
+
     ####################################################################################################
     # First the conformal factor phi
     
@@ -97,6 +111,9 @@ def get_bssn_rhs(bssn_rhs, r, bssn_vars, d1, d2, background, emtensor) :
                                + bar_A_squared + 0.5 * eight_pi_G * (emtensor.rho + emtensor.S))
             - em4phi * (bar_D2_lapse 
                         + 2.0 * np.einsum('xij,xi,xj->x', bar_gamma_UU, d1.lapse, d1.phi)))
+    
+    # Extra term to RHS due to Modified Gauge 
+    dKdt += ((bssn_vars.lapse*b)/(4*(1+b))) * (Trace_M* 2 * eight_pi_G * rho)
 
     bssn_rhs.K = dKdt 
 
@@ -177,6 +194,8 @@ def get_bssn_rhs(bssn_rhs, r, bssn_vars, d1, d2, background, emtensor) :
                   - four_thirds * bssn_vars.lapse[:,np.newaxis] * np.einsum('xij,xj->xi', bar_gamma_UU, d1.K)
                   - 2.0 * eight_pi_G * bssn_vars.lapse[:,np.newaxis] * np.einsum('xij,xj->xi', bar_gamma_UU, emtensor.Si))
     
+    dlambdadt -= ((2*bssn_vars.lapse[:,np.newaxis]*b)/(1+b))*(np.einsum("xij, xj->xi",bar_gamma_UU, N_L) - eight_pi_G * np.einsum("xij, xj->xi",bar_gamma_UU, S_L))
+
     # Rescale because we want change in lambda not Lambda
     dlambdadt[:] *= background.scaling_vector
     

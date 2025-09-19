@@ -73,7 +73,9 @@ def get_constraints_diagnostic(states_over_time, t, grid: Grid, background, matt
         a_times_d1_s = bssn_vars.a_LL[:,:,:,np.newaxis] * background.d1_scaling_matrix
         
         # Matter sources
-        my_emtensor = matter.get_emtensor(r, bssn_vars, background)
+        # my_emtensor = matter.get_emtensor(r, bssn_vars, background)
+
+        my_emtensor = matter.get_emtensor(r, bssn_vars, d1, d2, bssn_rhs, grid, background)
 
         # End of: Calculate some useful quantities, now start diagnostic
         #################################################################
