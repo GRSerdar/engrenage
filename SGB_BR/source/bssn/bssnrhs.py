@@ -113,7 +113,7 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, emten
                         + 2.0 * np.einsum('xij,xi,xj->x', bar_gamma_UU, d1.lapse, d1.phi)))
     
     # Extra term to RHS due to Modified Gauge 
-    dKdt += ((bssn_vars.lapse*b)/(4*(1+b))) * (Trace_M* 2 * eight_pi_G * rho)
+    dKdt += ((bssn_vars.lapse*b)/(4*(1+b))) * (Trace_M - 2 * eight_pi_G * rho)
 
     bssn_rhs.K = dKdt 
 

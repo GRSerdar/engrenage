@@ -41,14 +41,7 @@ class ScalarMatter :
     
     ###########################################################################################################################
     # The coupling function of the gauss bonnet term can change (now it is lambda(phi) = lambda_GB phi)
-    def Lambda_of_u(self,lambda_GB, u):
-        return (lambda_GB*u)
     
-    def d1_Lambda_d1_u(self,lambda_GB, u):
-        return (lambda_GB)
-    
-    def d2_Lambda_d2_u(self,lambda_GB, u):
-        return 0
     ###########################################################################################################################
 
     # def get_emtensor(self, r, bssn_vars, background) :
@@ -79,6 +72,16 @@ class ScalarMatter :
         Delta_U, Delta_ULL, Delta_LLL  = get_tensor_connections(r, bssn_vars.h_LL, bssn_d1.h_LL, background)
         bar_chris = get_bar_christoffel(r, Delta_ULL, background)
 
+        chi = np.exp(-4.0* bssn_vars.phi) 
+        chi0 = 0.15
+        function_of_lambda= (1)/(1+np.exp(-100*(chi-chi0)))
+    
+        def d1_Lambda_d1_u(lambda_GB):
+            return (lambda_GB*function_of_lambda)
+    
+        def d2_Lambda_d2_u(lambda_GB):
+            return 0*function_of_lambda
+
         ###########################################################################################################################
         ###########################################################################################################################
         # Define extra objects to compute the modified rho, S_i and S_ij
@@ -87,8 +90,8 @@ class ScalarMatter :
         lambda_GB =  0.05
 
         # \Omega_i (Note that the first term can be zero if coupling funciton is only of first order)
-        Omega_L = (- 4*self.d2_Lambda_d2_u(lambda_GB, self.u)*self.v[:,np.newaxis]* self.d1_u
-                   - 4*self.d1_Lambda_d1_u(lambda_GB, self.u)*(self.d1_v + np.einsum("xjb, xib,xj->xi",bar_gamma_UU, bar_A_LL,self.d1_u))
+        Omega_L = (- 4 * d2_Lambda_d2_u(lambda_GB)[:,np.newaxis] * self.v[:,np.newaxis]* self.d1_u
+                   - 4 * d1_Lambda_d1_u(lambda_GB)[:,np.newaxis] * (self.d1_v + np.einsum("xjb, xib,xj->xi",bar_gamma_UU, bar_A_LL,self.d1_u))
                    + one_third * bssn_vars.K[:,np.newaxis] * self.d1_u)
         
         # D_i D_j u (scalar field)
@@ -99,8 +102,8 @@ class ScalarMatter :
                   + 2 * np.einsum("xij, xml, xl, xm->xij",bar_gamma_LL, bar_gamma_UU, bssn_d1.phi, self.d1_u))
         
         # Omega_ij
-        Omega_LL = ( 4*self.d1_Lambda_d1_u(lambda_GB, self.u)*(DiDj_u + e4phi[:,np.newaxis,np.newaxis] * self.v[:,np.newaxis,np.newaxis] * (bar_A_LL + bar_gamma_LL * one_third * bssn_vars.K[:,np.newaxis,np.newaxis]))
-                    +4*self.d2_Lambda_d2_u(lambda_GB, self.u)*np.einsum('xi,xj->xij', self.d1_u, self.d1_u))
+        Omega_LL = ( 4 * d1_Lambda_d1_u(lambda_GB)[:,np.newaxis, np.newaxis] * (DiDj_u + e4phi[:,np.newaxis,np.newaxis] * self.v[:,np.newaxis,np.newaxis] * (bar_A_LL + bar_gamma_LL * one_third * bssn_vars.K[:,np.newaxis,np.newaxis]))
+                    +4 * d2_Lambda_d2_u(lambda_GB)[:,np.newaxis, np.newaxis] * np.einsum('xi,xj->xij', self.d1_u, self.d1_u))
         
         # \Omega = gamma^ij Omega_ij
         Trace_Omega = get_trace(Omega_LL, gamma_UU)
@@ -201,13 +204,14 @@ class ScalarMatter :
         
         # The value of the coupling is in the function 'd1_Lambda_d1_u'
         lambda_GB = 0.05
-        coupling = self.d1_Lambda_d1_u(lambda_GB, self.u)
-
-        #chi0 = 0.15
+        chi = np.exp(-4.0* bssn_vars.phi) 
         chi0 = 0.15
-        function_of_lambda= (coupling)/(1+np.exp(-100*(chi-chi0)))
+        function_of_lambda= (1)/(1+np.exp(-100*(chi-chi0)))
+    
+        def d1_Lambda_d1_u(lambda_GB):
+            return (lambda_GB*function_of_lambda)
 
-        dvdt +=  function_of_lambda * bssn_vars.lapse * L_GB
+        dvdt +=  d1_Lambda_d1_u(lambda_GB) * bssn_vars.lapse * L_GB
         ########################################################################################################
         ########################################################################################################
         
