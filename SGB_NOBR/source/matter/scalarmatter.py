@@ -116,7 +116,7 @@ class ScalarMatter :
         L_GB = compute_L_GB(bssn_vars, bssn_rhs, bssn_d1, bssn_d2, grid, background)
 
         chi = np.exp(-4.0* bssn_vars.phi) 
-        lambda_GB = 0.05
+        lambda_GB = 0.0
         #chi0 = 0.15
         chi0 = 0.05
         function_of_lambda= (lambda_GB)/(1+np.exp(-100*(chi-chi0)))

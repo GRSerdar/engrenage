@@ -88,6 +88,7 @@ class ScalarMatter :
 
         # Currently just setting a local value for lambda_GB (idea is to be able to loop over some values in notebook)
         lambda_GB =  0.05
+        #lambda_GB = 0
 
         # \Omega_i (Note that the first term can be zero if coupling funciton is only of first order)
         Omega_L = (- 4 * d2_Lambda_d2_u(lambda_GB)[:,np.newaxis] * self.v[:,np.newaxis]* self.d1_u
@@ -204,12 +205,13 @@ class ScalarMatter :
         
         # The value of the coupling is in the function 'd1_Lambda_d1_u'
         lambda_GB = 0.05
+        #lambda_GB = 0
         chi = np.exp(-4.0* bssn_vars.phi) 
         chi0 = 0.15
         function_of_lambda= (1)/(1+np.exp(-100*(chi-chi0)))
     
         def d1_Lambda_d1_u(lambda_GB):
-            return (lambda_GB*function_of_lambda)
+            return (lambda_GB * function_of_lambda)
 
         dvdt +=  d1_Lambda_d1_u(lambda_GB) * bssn_vars.lapse * L_GB
         ########################################################################################################

@@ -49,6 +49,20 @@ def get_initial_state(grid: Grid, background) :
     f_lapse = interp1d(R, lapse0_data)
     f_v     = interp1d(R, v0_data)
 
+    ###########################################################################
+    # Oscillon modification
+    
+    def bump(r, A, rl, ru):
+        out = np.zeros_like(r)
+        mask = (r > rl) & (r < ru)
+        x = r[mask]
+        out[mask] = A*(x-rl)**2*(x-ru)**2*np.exp(-1.0/(x-rl) - 1.0/(ru-x))
+        return out
+
+    u[:] += bump(r, A=1e-2, rl=45, ru=55)   
+
+    ###########################################################################
+
     # set the (non zero) scalar field values
     v[:] = f_v(r)
     
