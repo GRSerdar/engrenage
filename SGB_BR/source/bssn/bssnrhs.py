@@ -135,7 +135,7 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, emten
                         (- 2.0 * d2.phi
                          + 4.0 * np.einsum('xi,xj->xij', d1.phi, d1.phi)
                          + 2.0 * np.einsum('xkij,xk->xij', bar_chris, d1.phi)
-                         + bar_Rij - eight_pi_G * (emtensor.Sij + TraceFree_S_GB_LL))
+                         + bar_Rij - eight_pi_G * (emtensor.Sij ))
                       - d2.lapse
                       + np.einsum('xkij,xk->xij', bar_chris, d1.lapse)
                       + 2.0 * np.einsum('xi,xj->xij', d1.phi, d1.lapse)
@@ -153,7 +153,7 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, emten
     dadt = ( - two_thirds * bar_div_shift[:,np.newaxis,np.newaxis] * bssn_vars.a_LL
              + bssn_vars.lapse[:,np.newaxis,np.newaxis] * (- 2.0 * r_AikAkj
                                                  + bssn_vars.K[:,np.newaxis,np.newaxis] * bssn_vars.a_LL)
-             + em4phi[:,np.newaxis,np.newaxis] * (dadt_TF_part
+             + em4phi[:,np.newaxis,np.newaxis] * (dadt_TF_part - bssn_vars.lapse[:,np.newaxis,np.newaxis] * eight_pi_G * TraceFree_S_GB_LL
                                                   - one_third * trace * r_bar_gamma_LL))
 
     bssn_rhs.a_LL = dadt   

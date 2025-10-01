@@ -213,21 +213,21 @@ class ScalarMatter :
                                     + one_third * np.einsum("xi, xj->xij",bssn_d1.K, Omega_L) 
                                     + np.einsum("xi, xj->xij",Omega_L, N_L) 
                                     + one_third * np.einsum("xi, xj-> xij",Omega_L, bssn_d1.K))
-                             + 2 * (  np.einsum("xik, xck, xjc->xij",TraceFree_M_LL, gamma_UU, F_LL) 
+                             + 2 * (  np.einsum("xik, xck, xjc->xij",TraceFree_Omega_LL, gamma_UU, F_LL) 
                                     + np.einsum("xjk, xck, xic->xij",TraceFree_Omega_LL, gamma_UU, F_LL)
                                     - 2 * np.einsum("xk, xck, xcij-> xij",Omega_L, gamma_UU, D_L_A_LL)
                                     + np.einsum("xk, xck, xjic-> xij",Omega_L, gamma_UU, D_L_A_LL)
                                     + np.einsum("xk, xck, xijc-> xij", Omega_L, gamma_UU, D_L_A_LL))
                              - four_thirds * (  np.einsum("xij, xkl, xkl->xij",gamma_LL, TraceFree_Omega_UU, F_LL)
-                                              - 2 * np.einsum("xij, xk, xk->xij", gamma_LL, Omega_U, N_L)
+                                              + 2 * np.einsum("xij, xk, xk->xij", gamma_LL, Omega_U, N_L)
                                               + np.einsum("xij, xk, xk->xij",gamma_LL, Omega_U, bssn_d1.K))
-                             - 8 * (d1_Lambda_d1_u(lambda_GB)[:,np.newaxis, np.newaxis] * d1_Lambda_d1_u(lambda_GB)[:,np.newaxis, np.newaxis] * TraceFree_Omega_LL * L_GB[:,np.newaxis, np.newaxis])) 
+                             - 8 * (d1_Lambda_d1_u(lambda_GB)[:,np.newaxis, np.newaxis] * d1_Lambda_d1_u(lambda_GB)[:,np.newaxis, np.newaxis] * TraceFree_M_LL * L_GB[:,np.newaxis, np.newaxis])) 
         
         S_GB = (  four_thirds * Trace_Omega * F
                 + 4 * Trace_M * (- d2_Lambda_d2_u(lambda_GB)* (- (self.v)*(self.v) + (np.einsum("xij, xi, xj->x",gamma_UU, self.d1_u, self.d1_u)))
                                  - d1_Lambda_d1_u(lambda_GB) * self.dVdu(self.u) + one_third * Trace_Omega)
                 - rho_GB
-                - 2 * (np.einsum("xij, xij->x",TraceFree_Omega_UU, M_LL)- np.einsum("xij, xij->x", TraceFree_Omega_UU, F_LL))
+                - 2 * (np.einsum("xij, xij->x",TraceFree_Omega_UU, M_LL) + np.einsum("xij, xij->x", TraceFree_Omega_UU, F_LL))
                 - 4 * np.einsum("xij, xj, xi->x",gamma_UU, N_L, Omega_L)
                 + 4 * d1_Lambda_d1_u(lambda_GB)*d1_Lambda_d1_u(lambda_GB) * Trace_M * L_GB)
         
