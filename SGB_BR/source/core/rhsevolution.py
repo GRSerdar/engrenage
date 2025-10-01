@@ -108,10 +108,10 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
     # Set the gauge evolution for the lapse and shift
     # eta is the 1+log slicing damping coefficient - of order 1/M_adm of spacetime
 
+    # Modified Harmonic Gauge is implemented
     eta = 1.0
-
     bssn_rhs.b_U     += 0.75 * bssn_rhs.lambda_U - eta * bssn_vars.b_U
-    #bssn_rhs.shift_U += bssn_vars.b_U
+    #bssn_rhs.shift_U += bssn_vars.b_U (no clue what this is)
 
     bssn_rhs.lapse   += - 2.0 * bssn_vars.lapse * bssn_vars.K  
     bssn_rhs.lapse   += 2*((a)/(1+a)) * bssn_vars.lapse * bssn_vars.K

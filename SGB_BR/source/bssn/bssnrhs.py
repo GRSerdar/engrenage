@@ -54,15 +54,15 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, emten
 
     ########################################################################################################
     # Import Extra Objects to implement modified Harmonic Gauge
-
-    M_LL = compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background)[1] #idx=1 corresponds with M_LL
-    N_L = compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background)[2] #idx=2 corresponds with N_L
-    Trace_M = get_trace(M_LL, gamma_UU)
+    L_GB, M_LL, N_L = compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background)
+    # Trace_M = get_trace(M_LL, gamma_UU)
 
     EMtensor = matter.get_emtensor(r, bssn_vars, d1, d2, bssn_rhs, grid, background)
     rho = EMtensor.rho
     S_L = EMtensor.Si
 
+    rho_GB, S_GB_L, TraceFree_S_GB_LL, Trace_M, N_L, S_GB = matter.get_Extra_BR_terms(r, bssn_vars, d1, d2, bssn_rhs, grid, background)
+    
     ####################################################################################################
     # First the conformal factor phi
     
@@ -106,9 +106,9 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, emten
     bar_D2_lapse = (np.einsum('xij,xij->x', bar_gamma_UU, d2.lapse)
                   - np.einsum('xij,xkij,xk->x', bar_gamma_UU, bar_chris, d1.lapse))
 
-    # Calculate rhs    
+    # Calculate rhs (BackReaction Correction of EsGB is added)
     dKdt = (bssn_vars.lapse * (one_third * bssn_vars.K * bssn_vars.K 
-                               + bar_A_squared + 0.5 * eight_pi_G * (emtensor.rho + emtensor.S))
+                               + bar_A_squared + 0.5 * eight_pi_G * (emtensor.rho + emtensor.S + S_GB))
             - em4phi * (bar_D2_lapse 
                         + 2.0 * np.einsum('xij,xi,xj->x', bar_gamma_UU, d1.lapse, d1.phi)))
     
@@ -130,12 +130,12 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, emten
     # \bar A_ik \bar A^k_j = gamma^kl A_ik A_jl
     AikAkj = np.einsum('xkl,xik,xlj->xij', bar_gamma_UU, bar_A_LL, bar_A_LL)
     
-    # The trace free part of the evolution eqn for A_ij
+    # The trace free part of the evolution eqn for A_ij (BackReaction Correction of EsGB is added)
     dAdt_TF_part = (bssn_vars.lapse[:,np.newaxis,np.newaxis] * 
                         (- 2.0 * d2.phi
                          + 4.0 * np.einsum('xi,xj->xij', d1.phi, d1.phi)
                          + 2.0 * np.einsum('xkij,xk->xij', bar_chris, d1.phi)
-                         + bar_Rij - eight_pi_G * emtensor.Sij)
+                         + bar_Rij - eight_pi_G * (emtensor.Sij + TraceFree_S_GB_LL))
                       - d2.lapse
                       + np.einsum('xkij,xk->xij', bar_chris, d1.lapse)
                       + 2.0 * np.einsum('xi,xj->xij', d1.phi, d1.lapse)

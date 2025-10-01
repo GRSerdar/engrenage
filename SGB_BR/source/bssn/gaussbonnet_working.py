@@ -16,6 +16,12 @@ third_two = 3.0/2.0
 Gaur = []
 
 def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
+    """
+    ToDo:
+    - Make Different objects all seperate functions
+    - Do all ESGB related calculation of objects in this file
+    - Import all extra variables that are needed by changing the arguments of the functions (u, v, ...)
+    """
     r = grid.r
     N = grid.num_points
     

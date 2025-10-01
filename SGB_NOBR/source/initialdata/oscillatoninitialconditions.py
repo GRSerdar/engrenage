@@ -59,7 +59,7 @@ def get_initial_state(grid: Grid, background) :
         out[mask] = A*(x-rl)**2*(x-ru)**2*np.exp(-1.0/(x-rl) - 1.0/(ru-x))
         return out
 
-    u[:] += bump(r, A=1e-2, rl=45, ru=55)   
+    u[:] += bump(r, A=1e-6, rl=40, ru=55)   
 
     ###########################################################################
 
