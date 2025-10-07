@@ -4,10 +4,10 @@ from core.grid import *
 from bssn.bssnstatevariables import *
 from bssn.bssnvars import *
 from bssn.tensoralgebra import *
-from bssn.gaussbonnet_working import * #compute_L_GB
+from bssn.gaussbonnet_matrix import * #compute_L_GB
 
-# Changed the name so the other file (scalarmatter_matrix) is the only one that works
-class ScalarMatter2 :
+
+class ScalarMatter :
     """Represents the matter that sources the Einstein equation."""
 
     def __init__(self, a_scalar_mu=1.0) :
@@ -67,7 +67,8 @@ class ScalarMatter2 :
         bar_A_LL = get_bar_A_LL(r, bssn_vars, background) 
 
         # Calculating L_GB, M_LL and N_L, since they will be used in other objects
-        L_GB, M_LL, N_L = compute_L_GB(bssn_vars, bssn_rhs, bssn_d1, bssn_d2, grid, background)
+        # The L_GB that we import here is barred
+        bar_L_GB, M_LL, N_L = compute_L_GB(bssn_vars, bssn_rhs, bssn_d1, bssn_d2, grid, background)
         Trace_M = get_trace(M_LL, gamma_UU)
         
         # The connections + Christoffel symbols
@@ -167,6 +168,7 @@ class ScalarMatter2 :
         
         # Trace Free terms of Sij
         # F 
+        """
         F = (  ilapse * dKdt_perp 
              + ilapse * D2_lapse 
              + Asquared 
@@ -176,6 +178,13 @@ class ScalarMatter2 :
         F_LL = ( ilapse[:,np.newaxis,np.newaxis] * e4phi[:,np.newaxis,np.newaxis] * dAdt_perp 
                + ilapse[:,np.newaxis,np.newaxis] * DkDl_lapse
                + e4phi[:,np.newaxis,np.newaxis] * (bar_A_LL_A_UL - two_thirds * (bssn_vars.K[:,np.newaxis,np.newaxis] - ilapse[:,np.newaxis,np.newaxis] * div_shift[:,np.newaxis,np.newaxis]) * bar_A_LL))
+        """
+        bar_F = (ilapse * D2_lapse 
+                 + Asquared 
+                 - bssn_vars.K * bssn_vars.K)
+        
+        bar_F_LL = (ilapse[:,np.newaxis,np.newaxis] * DkDl_lapse
+                    + e4phi[:,np.newaxis,np.newaxis] * (bar_A_LL_A_UL - two_thirds * (bssn_vars.K[:,np.newaxis,np.newaxis] - ilapse[:,np.newaxis,np.newaxis] * div_shift[:,np.newaxis,np.newaxis]) * bar_A_LL))
         
         # F_L_U 
         # F_L_U = np.einsum("xjb, xij->xib",gamma_UU, F_LL)
@@ -202,7 +211,7 @@ class ScalarMatter2 :
                                                              - 2*np.einsum("xk, xji->xijk",bssn_d1.phi, bar_A_LL)
                                                              + 2*np.einsum("xij, xml, xl, xmk->xijk",bar_gamma_LL, bar_gamma_UU, bssn_d1.phi, bar_A_LL)
                                                              + 2*np.einsum("xik, xml, xl, xjm->xijk",bar_gamma_LL, bar_gamma_UU, bssn_d1.phi, bar_A_LL))
-
+        """
         # Trace Free S_GB
         TraceFree_S_GB_LL = (- two_thirds * TraceFree_Omega_LL*(F[:,np.newaxis, np.newaxis] + 2 * (ilapse[:,np.newaxis, np.newaxis] * D2_lapse[:,np.newaxis, np.newaxis] - Asquared[:,np.newaxis, np.newaxis]))
                              - 2 * TraceFree_M_LL*(  Trace_Omega[:,np.newaxis, np.newaxis] 
@@ -231,7 +240,40 @@ class ScalarMatter2 :
                 - 4 * np.einsum("xij, xj, xi->x",gamma_UU, N_L, Omega_L)
                 + 4 * d1_Lambda_d1_u(lambda_GB)*d1_Lambda_d1_u(lambda_GB) * Trace_M * L_GB)
         
-        return (rho_GB, S_GB_L, TraceFree_S_GB_LL, Trace_M, N_L, S_GB)
+        """
+        
+        # Trace Free S_GB
+        bar_TraceFree_S_GB_LL = (- two_thirds * TraceFree_Omega_LL*(bar_F[:,np.newaxis, np.newaxis] + 2 * (ilapse[:,np.newaxis, np.newaxis] * D2_lapse[:,np.newaxis, np.newaxis] - Asquared[:,np.newaxis, np.newaxis]))
+                             - 2 * TraceFree_M_LL*(  Trace_Omega[:,np.newaxis, np.newaxis] 
+                                                   - 4*d2_Lambda_d2_u(lambda_GB)[:,np.newaxis, np.newaxis]* (-(self.v[:,np.newaxis, np.newaxis])*(self.v[:,np.newaxis, np.newaxis]) + np.einsum("xij, xi, xj->x",gamma_UU,self.d1_u,self.d1_u)[:,np.newaxis, np.newaxis]) 
+                                                   - 4 * self.dVdu(self.u)[:,np.newaxis, np.newaxis] * d1_Lambda_d1_u(lambda_GB)[:,np.newaxis, np.newaxis])
+                             - two_thirds * Trace_Omega[:,np.newaxis, np.newaxis]*(bar_F_LL - one_third * gamma_LL*(ilapse[:,np.newaxis, np.newaxis] * D2_lapse[:,np.newaxis, np.newaxis] - Asquared[:,np.newaxis, np.newaxis]))
+                             + 2 * (  np.einsum("xi, xj->xij",N_L, Omega_L) 
+                                    + one_third * np.einsum("xi, xj->xij",bssn_d1.K, Omega_L) 
+                                    + np.einsum("xi, xj->xij",Omega_L, N_L) 
+                                    + one_third * np.einsum("xi, xj-> xij",Omega_L, bssn_d1.K))
+                             + 2 * (  np.einsum("xik, xck, xjc->xij",TraceFree_Omega_LL, gamma_UU, bar_F_LL) 
+                                    + np.einsum("xjk, xck, xic->xij",TraceFree_Omega_LL, gamma_UU, bar_F_LL)
+                                    - 2 * np.einsum("xk, xck, xcij-> xij",Omega_L, gamma_UU, D_L_A_LL)
+                                    + np.einsum("xk, xck, xjic-> xij",Omega_L, gamma_UU, D_L_A_LL)
+                                    + np.einsum("xk, xck, xijc-> xij", Omega_L, gamma_UU, D_L_A_LL))
+                             - four_thirds * (  np.einsum("xij, xkl, xkl->xij",gamma_LL, TraceFree_Omega_UU, bar_F_LL)
+                                              + 2 * np.einsum("xij, xk, xk->xij", gamma_LL, Omega_U, N_L)
+                                              + np.einsum("xij, xk, xk->xij",gamma_LL, Omega_U, bssn_d1.K))
+                             - 8 * (d1_Lambda_d1_u(lambda_GB)[:,np.newaxis, np.newaxis] * d1_Lambda_d1_u(lambda_GB)[:,np.newaxis, np.newaxis] * TraceFree_M_LL * bar_L_GB[:,np.newaxis, np.newaxis])) 
+        
+        bar_S_GB = (  four_thirds * Trace_Omega * bar_F
+                + 4 * Trace_M * (- d2_Lambda_d2_u(lambda_GB)* (- (self.v)*(self.v) + (np.einsum("xij, xi, xj->x",gamma_UU, self.d1_u, self.d1_u)))
+                                 - d1_Lambda_d1_u(lambda_GB) * self.dVdu(self.u) + one_third * Trace_Omega)
+                - rho_GB
+                - 2 * (np.einsum("xij, xij->x",TraceFree_Omega_UU, M_LL) + np.einsum("xij, xij->x", TraceFree_Omega_UU, bar_F_LL))
+                - 4 * np.einsum("xij, xj, xi->x",gamma_UU, N_L, Omega_L)
+                + 4 * d1_Lambda_d1_u(lambda_GB)*d1_Lambda_d1_u(lambda_GB) * Trace_M * bar_L_GB)
+        
+        # Now we define the same variables but barred, these have no time derivatives in function of K and Aij
+        d1Lambdadu = d1_Lambda_d1_u(lambda_GB)
+        
+        return (rho_GB, S_GB_L, bar_TraceFree_S_GB_LL, Trace_M, N_L, bar_S_GB, Omega_LL,d1Lambdadu, self.u, self.v, self.d1_u,self.d2_u)
 
     def get_emtensor(self, r, bssn_vars, bssn_d1, bssn_d2, bssn_rhs, grid, background):
         
@@ -252,7 +294,7 @@ class ScalarMatter2 :
         ###########################################################################################################################
         ##### Matter Term Corrections ############################################################################################
         
-        rho_GB, S_GB_L, TraceFree_S_GB_LL,Trace_M, N_L, S_GB = self.get_Extra_BR_terms(r, bssn_vars, bssn_d1, bssn_d2, bssn_rhs, grid,  background)
+        rho_GB, S_GB_L, TraceFree_S_GB_LL,Trace_M, N_L, S_GB,Omega_LL, d1Lambdadu, u, v, d1_u, d2_u= self.get_Extra_BR_terms(r, bssn_vars, bssn_d1, bssn_d2, bssn_rhs, grid,  background)
 
         ###########################################################################################################################
         ###########################################################################################################################
@@ -278,8 +320,12 @@ class ScalarMatter2 :
             
         return scalar_emtensor
 
-    def get_matter_rhs(self, r, bssn_vars, bssn_d1, bssn_d2, bssn_rhs, grid, background):
+    def get_matter_rhs(self, r, bssn_vars, bssn_d1, bssn_d2, bssn_rhs, grid, background, dvdt):
+        # Essentially the only thing this function does now
+        # is add the advection parts to the matter variables (which can later be switched to RHS_Evolution)
+        # And it also calculates dudt
 
+        
         assert self.matter_vars_set, 'Matter vars not set'        
         
         # The connections Delta^i, Delta^i_jk and Delta_ijk
@@ -292,6 +338,7 @@ class ScalarMatter2 :
         bar_gamma_UU = get_bar_gamma_UU(r, bssn_vars.h_LL, background)
 
         dudt =  bssn_vars.lapse * self.v #this is just lapse times first derivative of du/dt (=v)
+        """
         dvdt =  (bssn_vars.lapse * bssn_vars.K * self.v 
                  + 2.0 * bssn_vars.lapse * em4phi * np.einsum('xij,xi,xj->x', bar_gamma_UU, bssn_d1.phi, self.d1_u)
                  +       bssn_vars.lapse * em4phi * np.einsum('xij,xij->x', bar_gamma_UU, self.d2_u)
@@ -300,11 +347,13 @@ class ScalarMatter2 :
 
         # Add mass term
         dvdt += - bssn_vars.lapse * self.dVdu(self.u)
+        """
 
         ########################################################################################################
         ########################################################################################################
         # MODIFICATION FOR SCALAR GAUS BONNET PART (extra term to dvdt)
-
+        """
+        # This will be done during the matrix inversion step
         # Calculates the gauss bonnet scalar
         L_GB = compute_L_GB(bssn_vars, bssn_rhs, bssn_d1, bssn_d2, grid, background)[0] #idx=0 corresponds with L_GB
 
@@ -321,6 +370,7 @@ class ScalarMatter2 :
             return (lambda_GB * function_of_lambda)
 
         dvdt +=  d1_Lambda_d1_u(lambda_GB) * bssn_vars.lapse * L_GB
+        """
         ########################################################################################################
         ########################################################################################################
         

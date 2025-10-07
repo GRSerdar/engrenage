@@ -4,16 +4,13 @@
 
 import numpy as np
 from bssn.tensoralgebra import *
-from bssn.gaussbonnet_working import * #compute_L_GB objects
+from bssn.gaussbonnet_matrix import * #compute_L_GB objects
 
 # phi is the (exponential) conformal factor, that is \gamma_ij = e^{4\phi) \bar gamma_ij
 def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, emtensor) :
 
     ####################################################################################################
     # Get all the useful quantities that will be used in the rhs
-    
-    #safe_phi = np.clip(bssn_vars.phi, -20, 20)
-    #em4phi = np.exp(-4.0*safe_phi)    
 
     # Constant factors needed in Modified Gauge (for modified gravity)
     # In the case you want to work in standard GR, just set these to zero.
@@ -57,14 +54,14 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, emten
 
     ########################################################################################################
     # Import Extra Objects to implement modified Harmonic Gauge
-    L_GB, M_LL, N_L = compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background)
+    bar_L_GB, M_LL, N_L = compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background)
     # Trace_M = get_trace(M_LL, gamma_UU)
 
     EMtensor = matter.get_emtensor(r, bssn_vars, d1, d2, bssn_rhs, grid, background)
     rho = EMtensor.rho
     S_L = EMtensor.Si
 
-    rho_GB, S_GB_L, TraceFree_S_GB_LL, Trace_M, N_L, S_GB, Omega_LL , d1Lambdadu = matter.get_Extra_BR_terms(r, bssn_vars, d1, d2, bssn_rhs, grid, background)
+    rho_GB, S_GB_L, bar_TraceFree_S_GB_LL, Trace_M, N_L, bar_S_GB, Omega_LL , d1Lambdadu, u, v, d1_u, d2_u = matter.get_Extra_BR_terms(r, bssn_vars, d1, d2, bssn_rhs, grid, background)
     
     ####################################################################################################
     # First the conformal factor phi
@@ -111,14 +108,15 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, emten
 
     # Calculate rhs (BackReaction Correction of EsGB is added)
     dKdt = (bssn_vars.lapse * (one_third * bssn_vars.K * bssn_vars.K 
-                               + bar_A_squared + 0.5 * eight_pi_G * (emtensor.rho + emtensor.S + S_GB))
+                               + bar_A_squared + 0.5 * eight_pi_G * (emtensor.rho + emtensor.S))
             - em4phi * (bar_D2_lapse 
                         + 2.0 * np.einsum('xij,xi,xj->x', bar_gamma_UU, d1.lapse, d1.phi)))
     
     # Extra term to RHS due to Modified Gauge 
     dKdt += ((bssn_vars.lapse*b)/(4*(1+b))) * (Trace_M - 2 * eight_pi_G * rho)
-
-    bssn_rhs.K = dKdt 
+    
+    # We put this to zero atm
+    #bssn_rhs.K = dKdt 
 
     ####################################################################################################    
     # a_ij is the rescaled version of the conformal, traceless part of the extrinsic curvature
@@ -156,10 +154,10 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, emten
     dadt = ( - two_thirds * bar_div_shift[:,np.newaxis,np.newaxis] * bssn_vars.a_LL
              + bssn_vars.lapse[:,np.newaxis,np.newaxis] * (- 2.0 * r_AikAkj
                                                  + bssn_vars.K[:,np.newaxis,np.newaxis] * bssn_vars.a_LL)
-             + em4phi[:,np.newaxis,np.newaxis] * (dadt_TF_part - bssn_vars.lapse[:,np.newaxis,np.newaxis] * eight_pi_G * TraceFree_S_GB_LL
+             + em4phi[:,np.newaxis,np.newaxis] * (dadt_TF_part - bssn_vars.lapse[:,np.newaxis,np.newaxis] * eight_pi_G 
                                                   - one_third * trace * r_bar_gamma_LL))
 
-    bssn_rhs.a_LL = dadt   
+    #bssn_rhs.a_LL = dadt   
 
     ####################################################################################################    
     # lambda^i is the rescaled version of the constrained quantity \Lambda^i = \Delta^i
@@ -203,7 +201,174 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, emten
     dlambdadt[:] *= background.scaling_vector
     
     bssn_rhs.lambda_U = dlambdadt
+
+
+    ####################################################################################################
+    # Construction of matrix to complete backreaction
+    r = grid.r
+    N = grid.num_points
+
+    # Import usefull quantities
+    Trace_Omega = get_trace(Omega_LL, gamma_UU)
+    TraceFree_Omega_LL = Omega_LL - one_third * gamma_LL * Trace_Omega[:, np.newaxis, np.newaxis]
+    TraceFree_Omega_UU = np.einsum("xia, xjb,xij->xab",gamma_UU,gamma_UU,TraceFree_Omega_LL)
+    TraceFree_M_LL = M_LL - one_third * gamma_LL * Trace_M[:, np.newaxis, np.newaxis]
+    TraceFree_M_UU = np.einsum("xia, xjb, xab->xij",gamma_UU, gamma_UU, TraceFree_M_LL)
+
+    # inverse scaling 
+    s = background.scaling_matrix
+    invs = background.inverse_scaling_matrix
+
+    # Define dirac deltas
+    delta_U_L = np.einsum("xim, xmk->xik",gamma_UU, gamma_LL)
+
+    # Define all matrix components
+    X_ij_UU = (np.einsum("xki, xlj->xijkl", delta_U_L, delta_U_L)*(1- (2*eight_pi_G/3)* Trace_Omega[:,np.newaxis,np.newaxis,np.newaxis,np.newaxis])
+               + 8*np.pi*(2*(np.einsum("xli, xjm, xmk->xijkl", delta_U_L, TraceFree_Omega_LL, gamma_UU) + np.einsum("xlj, xim, xmk->xijkl",delta_U_L, TraceFree_Omega_LL, gamma_UU))
+                          - four_thirds * np.einsum("xij, xkl->xijkl", gamma_LL, TraceFree_Omega_UU)
+                          - 64 * d1Lambdadu[:,np.newaxis,np.newaxis,np.newaxis,np.newaxis] * d1Lambdadu[:,np.newaxis,np.newaxis,np.newaxis,np.newaxis] * np.einsum("xij, xkl-> xijkl",TraceFree_M_LL, TraceFree_M_UU)))
     
+    Y_ij = (8*np.pi / 3) * em4phi[:,np.newaxis, np.newaxis] * (32* d1Lambdadu[:,np.newaxis,np.newaxis] * d1Lambdadu[:,np.newaxis,np.newaxis]* TraceFree_M_LL * Trace_M[:,np.newaxis,np.newaxis] - 2 * TraceFree_Omega_LL)
+
+    X_K_UU = (8*np.pi / em4phi[:,np.newaxis, np.newaxis]) * (TraceFree_Omega_UU - 16 * d1Lambdadu[:,np.newaxis,np.newaxis] * d1Lambdadu[:,np.newaxis,np.newaxis] * Trace_M[:,np.newaxis,np.newaxis] * TraceFree_M_UU)
+
+    Y_K = (1+(16*np.pi/3)*(4*d1Lambdadu*d1Lambdadu* Trace_M * Trace_M - Trace_Omega))
+
+    X_Pi_UU = -(8/em4phi[:,np.newaxis, np.newaxis]) * d1Lambdadu[:,np.newaxis, np.newaxis] * TraceFree_M_UU
+
+    Y_Pi = (four_thirds) * d1Lambdadu * Trace_M
+
+    # the RHS 
+    Z_A_LL = background.scaling_matrix * dadt + (bssn_vars.lapse[:, np.newaxis, np.newaxis] * em4phi[:,np.newaxis, np.newaxis] * (bar_TraceFree_S_GB_LL))
+    
+    DKDT = dKdt + 4 * np.pi * bssn_vars.lapse  * (bar_S_GB)
+    
+    dvdt =  (bssn_vars.lapse * bssn_vars.K * v 
+                 + 2.0 * bssn_vars.lapse * em4phi * np.einsum('xij,xi,xj->x', bar_gamma_UU, d1.phi, d1_u)
+                 +       bssn_vars.lapse * em4phi * np.einsum('xij,xij->x', bar_gamma_UU, d2_u)
+                 +                         em4phi * np.einsum('xij,xi,xj->x', bar_gamma_UU, d1.lapse, d1_u)
+                 -       bssn_vars.lapse * em4phi * np.einsum('xij,xkij,xk->x', bar_gamma_UU, bar_chris, d1_u)) - bssn_vars.lapse * matter.dVdu(u)
+
+    """
+    # Now we build the matrices (FULL 5X5)
+    M = np.zeros((N,4,4))
+    #U = np.zeros((N,5,1))
+    Z = np.zeros((N,4,1))
+    A_LL = np.zeros([N, 3, 3])
+
+    # Filling of each comonent
+    ir, it, ip = i_r, i_t, i_p
+
+    # Construction of M matrix, currently a 5x5, but if it ends up being singular -> 4x4 matrix
+    # CURRENT PHILOSOPHY: Calculate the evolution equations, only scale dadt all the way at the end
+    # First row
+    M[:, 0 , 0] =  X_ij_UU[:,ir, ir, ir, ir ]
+    M[:, 0 , 1] =  X_ij_UU[:,ir, ir, it, it ]
+    M[:, 0 , 2] =  X_ij_UU[:,ir, ir, ip, ip ]
+    M[:, 0 , 3] =  Y_ij[:,ir, ir]
+    M[:, 0 , 4] = 0
+
+    # Second row
+    M[:, 1 , 0] =  X_ij_UU[:,it, it, ir, ir ]
+    M[:, 1 , 1] =  X_ij_UU[:,it, it, it, it ]
+    M[:, 1 , 2] =  X_ij_UU[:,it, it, ip, ip ]
+    M[:, 1 , 3] =  Y_ij[:,it, it]
+    M[:, 1 , 4] =  0
+
+    # Third row
+    M[:, 2 , 0] =  X_ij_UU[:,ip, ip, ir, ir ]
+    M[:, 2 , 1] =  X_ij_UU[:,ip, ip, it, it ]
+    M[:, 2 , 2] =  X_ij_UU[:,ip, ip, ip, ip ]
+    M[:, 2 , 3] =  Y_ij[:,ip, ip]
+    M[:, 2 , 4] = 0
+
+    # Fourth row
+    M[:, 3 , 0] = X_K_UU[:, ir, ir ]
+    M[:, 3 , 1] = X_K_UU[:, it, it ]
+    M[:, 3 , 2] = X_K_UU[:, ip, ip ]
+    M[:, 3 , 3] = Y_K
+    M[:, 3 , 4] = 0
+
+    # Fifth row
+    M[:, 4 , 0] = X_Pi_UU[:, ir, ir ]
+    M[:, 4 , 1] = X_Pi_UU[:, it, it ]
+    M[:, 4 , 2] = X_Pi_UU[:, ip, ip ]
+    M[:, 4 , 3] = Y_Pi
+    M[:, 4 , 4] = 1
+
+    # Evolution equation matrix
+    # The matrix you are trying to solve for should not be filled with empty solution matrices.
+
+    U[:,0] = U_dadt[:,ir, ir]
+    U[:,1] = U_dadt[:,it, it]
+    U[:,2] = U_dadt[:,ip, ip]
+    U[:,3] = U_dKdt
+    U[:,4] = U_dPidt
+
+
+    # RHS matrix
+    Z[:,0, 0] = Z_A_LL[:, ir, ir]
+    Z[:,1, 0] = Z_A_LL[:, it, it]
+    Z[:,2, 0] = Z_A_LL[:, ip, ip]
+    Z[:,3, 0] = DKDT
+    Z[:,4, 0] = dvdt
+
+    # After solving the matrix system
+    dU = np.linalg.solve(M, Z)[..., 0]   # shape (N,5)
+
+    A_LL[:, ir, ir] = dU[:, 0]
+    A_LL[:, it, it] = dU[:, 1]
+    A_LL[:, ip, ip] = dU[:, 2]
+
+    bssn_rhs.a_LL = background.inverse_scaling_matrix * A_LL
+    bssn_rhs.K = dU[:, 3]
+    dPidt = dU[:, 4]
+    return dPidt
+    """
+    
+    # Iteration 2 (STILL GIVES SINGULAR MATRIX ERROR)
+    M = np.zeros((N,4,4))
+    Z = np.zeros((N,4,1))
+
+    ir, it, ip = i_r, i_t, i_p
+
+    # A–A block
+    M[:,0,0] = X_ij_UU[:,ir,ir,ir,ir]
+    M[:,0,1] = X_ij_UU[:,ir,ir,it,it] + X_ij_UU[:,ir,ir,ip,ip]
+    M[:,1,0] = X_ij_UU[:,it,it,ir,ir] + X_ij_UU[:,ip,ip,ir,ir]
+    M[:,1,1] = (X_ij_UU[:,it,it,it,it] + X_ij_UU[:,it,it,ip,ip]+ X_ij_UU[:,ip,ip,it,it] + X_ij_UU[:,ip,ip,ip,ip])
+
+    # A–K and K–A couplings
+    M[:,0,2] = Y_ij[:,ir,ir]
+    M[:,1,2] = Y_ij[:,it,it] + Y_ij[:,ip,ip]
+    M[:,2,0] = X_K_UU[:,ir,ir]
+    M[:,2,1] = X_K_UU[:,it,it] + X_K_UU[:,ip,ip]
+    M[:,2,2] = Y_K
+
+    # A–Pi, K–Pi, Pi–Pi
+    M[:,0,3] = X_Pi_UU[:,ir,ir]
+    M[:,1,3] = X_Pi_UU[:,it,it] + X_Pi_UU[:,ip,ip]
+    M[:,2,3] = Y_Pi
+    M[:,3,3] = 1.0
+
+    # RHS
+    Z[:,0,0] = Z_A_LL[:,ir,ir]
+    Z[:,1,0] = Z_A_LL[:,it,it] + Z_A_LL[:,ip,ip]
+    Z[:,2,0] = DKDT
+    Z[:,3,0] = dvdt
+
+    dU = np.linalg.solve(M, Z)[...,0]  # shape (N,4)
+
+    A_LL = np.zeros((N,3,3))
+    A_LL[:,ir,ir] = dU[:,0]
+    A_LL[:,it,it] = dU[:,1]
+    A_LL[:,ip,ip] = dU[:,1]          
+    
+    bssn_rhs.a_LL = background.inverse_scaling_matrix * A_LL
+    bssn_rhs.K    = dU[:,2]
+    dPidt         = dU[:,3]
+    return dPidt
+
     ####################################################################################################
     # end of bssn rhs
     ####################################################################################################

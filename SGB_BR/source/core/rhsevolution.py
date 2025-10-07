@@ -7,7 +7,7 @@ import time
 # homemade source code
 from core.grid import Grid
 from bssn.tensoralgebra import *
-from bssn.bssnrhs import *
+from bssn.bssnrhs_matrix import *
 from bssn.bssnvars import BSSNVars
 
 # function that returns the rhs for each of the field vars
@@ -98,9 +98,11 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
     #####################################################################################################
     # now calculate the rhs values for bssn vars for the main grid (boundaries handled below)
 
-    # Get the bssn rhs - see bssnrhs.py
-    get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, my_emtensor)
-    matter_rhs = matter.get_matter_rhs(r, bssn_vars, d1, d2, bssn_rhs, grid,  background)
+    # I am passing trough the dPidt from bssnrhs to the matter rhs, can be cleaned up later 
+    dPidt = get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, my_emtensor)
+
+    # We could compute dPidt in bssnrhs and import it in matter_rhs to make it undergo advection
+    matter_rhs = matter.get_matter_rhs(r, bssn_vars, d1, d2, bssn_rhs, grid,  background, dPidt)
 
     ########################################################################################################
     # GAUGE EVOLUTION
