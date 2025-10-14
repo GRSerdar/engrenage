@@ -4,64 +4,76 @@
 
 import numpy as np
 from bssn.tensoralgebra import *
-from bssn.gaussbonnet_matrix import * #compute_L_GB objects
+from bssn.bssnvars import *
 
-# phi is the (exponential) conformal factor, that is \gamma_ij = e^{4\phi) \bar gamma_ij
-def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background) :
-
+# phi is the (exponential) conformal factor, that is \gamma_ij = e^{4\phi} \bar\gamma_{ij}
+def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, gauge_coefficients):
     ####################################################################################################
     # Get all the useful quantities that will be used in the rhs
 
     # Constant factors needed in Modified Gauge (for modified gravity)
     # In the case you want to work in standard GR, just set these to zero.
-    a = 0.2
-    b = 0.4
+    a, b = gauge_coefficients
 
-    em4phi = np.exp(-4.0*bssn_vars.phi)  
-    e4phi = 1/em4phi  
+    em4phi = np.exp(-4.0*bssn_vars.phi)
+    e4phi  = 1.0/em4phi
 
     bar_gamma_LL = get_bar_gamma_LL(r, bssn_vars.h_LL, background)
     bar_gamma_UU = get_bar_gamma_UU(r, bssn_vars.h_LL, background)
 
-    gamma_UU = em4phi[:,np.newaxis,np.newaxis] *bar_gamma_UU
-    gamma_LL = e4phi[:,np.newaxis,np.newaxis] * bar_gamma_LL
-    
+    gamma_UU = em4phi[:,np.newaxis,np.newaxis] * bar_gamma_UU
+    gamma_LL = e4phi [:,np.newaxis,np.newaxis] * bar_gamma_LL
+
     # The rescaled connections Delta^i, Delta^i_jk and Delta_ijk
-    Delta_U, Delta_ULL, Delta_LLL  = get_tensor_connections(r, bssn_vars.h_LL, d1.h_LL, background)
-    
-    # \bar \Gamma^i_jk
+    Delta_U, Delta_ULL, Delta_LLL = get_tensor_connections(r, bssn_vars.h_LL, d1.h_LL, background)
+
+    # \bar \Gamma^i_{jk}
     bar_chris = get_bar_christoffel(r, Delta_ULL, background)
 
-   # rescaled shift in terms of scaling factors and bssn_vars.shift_U
+    # rescaled shift in terms of scaling factors and bssn_vars.shift_U
     Shift_U = background.inverse_scaling_vector * bssn_vars.shift_U
-    d1_Shift_U = (background.d1_inverse_scaling_vector * bssn_vars.shift_U[:,:,np.newaxis] 
-                     + d1.shift_U * background.inverse_scaling_vector[:,:,np.newaxis])
+    d1_Shift_U = (background.d1_inverse_scaling_vector * bssn_vars.shift_U[:,:,np.newaxis]
+                  + d1.shift_U * background.inverse_scaling_vector[:,:,np.newaxis])
     d2_Shift_U = (np.einsum('xijk,xi->xijk', background.d2_inverse_scaling_vector, bssn_vars.shift_U)
-         + np.einsum('xik,xij->xijk', background.d1_inverse_scaling_vector, d1.shift_U)
-         + np.einsum('xij,xik->xijk', background.d1_inverse_scaling_vector, d1.shift_U)
-         + np.einsum('xi,xijk->xijk', background.inverse_scaling_vector, d2.shift_U)
-    )
+                  + np.einsum('xik,xij->xijk', background.d1_inverse_scaling_vector, d1.shift_U)
+                  + np.einsum('xij,xik->xijk', background.d1_inverse_scaling_vector, d1.shift_U)
+                  + np.einsum('xi,xijk->xijk', background.inverse_scaling_vector, d2.shift_U))
 
     # This is the conformal divergence of the shift \bar D_i \beta^i
-    bar_div_shift =  np.einsum('xii->x', d1_Shift_U)
-    bar_div_shift += np.einsum('xiij,xj->x', bar_chris, Shift_U)     
+    bar_div_shift  = np.einsum('xii->x', d1_Shift_U)
+    bar_div_shift += np.einsum('xiij,xj->x', bar_chris, Shift_U)
 
-    # Trace of \bar Aij and \bar{A}_ij \bar{A}^ij
-    trace_bar_A   = get_trace_bar_A(r, bssn_vars, background)       
-    bar_A_squared = get_bar_A_squared(r, bssn_vars, background) 
-    bar_A_LL = get_bar_A_LL(r, bssn_vars, background)
-    bar_A_UU = get_bar_A_UU(r, bssn_vars, background)
+    # Trace of \bar A_ij and \bar{A}_{ij}\bar{A}^{ij}
+    trace_bar_A   = get_trace_bar_A(r, bssn_vars, background)
+    bar_A_squared = get_bar_A_squared(r, bssn_vars, background)
+    bar_A_LL      = get_bar_A_LL(r, bssn_vars, background)
+    bar_A_UU      = get_bar_A_UU(r, bssn_vars, background)
 
-    ########################################################################################################
-    # Import Extra Objects to implement modified Harmonic Gauge
-    bar_L_GB, M_LL, N_L = compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background)
-    # Trace_M = get_trace(M_LL, gamma_UU)
+    ####################################################################################################
+    # Importing all modified gravity objects ###########################################################
+    bar_L_GB = gb.bar_L_GB
+    M_LL     = gb.M_LL
+    N_L      = gb.N_L
+    Trace_M  = gb.Trace_M  
 
-    EMtensor = matter.get_emtensor(r, bssn_vars, d1, d2, bssn_rhs, grid, background)
-    rho = EMtensor.rho
-    S_L = EMtensor.Si
+    bar_TraceFree_S_GB_LL = gb.bar_TraceFree_S_GB_LL
+    bar_S_GB            = gb.bar_S_GB
+    Omega_LL            = gb.Omega_LL
+    d1Lambdadu         = gb.d1Lambdadu
 
-    rho_GB, S_GB_L, bar_TraceFree_S_GB_LL, Trace_M, N_L, bar_S_GB, Omega_LL , d1Lambdadu, u, v, d1_u, d2_u = matter.get_Extra_BR_terms(r, bssn_vars, d1, d2, bssn_rhs, grid, background)
+    ####################################################################################################
+    # Importing EM tensor (which already holds the backreaction corrections in rho and S_L #############
+
+    EMtensor = matter.get_emtensor(r, bssn_vars, d1, d2, bssn_rhs, grid, background, gb)
+    print(EMtensor.rho)
+    print(EMtensor.Si)
+    print(EMtensor.S)
+
+    u = matter.u
+    v = matter.v
+
+    d1_u = matter.d1_u
+    d2_u = matter.d2_u
     
     ####################################################################################################
     # First the conformal factor phi
@@ -108,12 +120,12 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background) :
 
     # Calculate rhs (BackReaction Correction of EsGB is added)
     dKdt = (bssn_vars.lapse * (one_third * bssn_vars.K * bssn_vars.K 
-                               + bar_A_squared + 0.5 * eight_pi_G * (emtensor.rho + emtensor.S))
+                               + bar_A_squared + 0.5 * eight_pi_G * (EMtensor.rho + EMtensor.S))
             - em4phi * (bar_D2_lapse 
                         + 2.0 * np.einsum('xij,xi,xj->x', bar_gamma_UU, d1.lapse, d1.phi)))
     
     # Extra term to RHS due to Modified Gauge 
-    dKdt += ((bssn_vars.lapse*b)/(4*(1+b))) * (Trace_M - 2 * eight_pi_G * rho)
+    dKdt += ((bssn_vars.lapse*b)/(4*(1+b))) * (Trace_M - 2 * eight_pi_G * EMtensor.rho)
     
     # We put this to zero atm
     #bssn_rhs.K = dKdt 
@@ -136,7 +148,7 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background) :
                         (- 2.0 * d2.phi
                          + 4.0 * np.einsum('xi,xj->xij', d1.phi, d1.phi)
                          + 2.0 * np.einsum('xkij,xk->xij', bar_chris, d1.phi)
-                         + bar_Rij - eight_pi_G * (emtensor.Sij ))
+                         + bar_Rij - eight_pi_G * (EMtensor.Sij ))
                       - d2.lapse
                       + np.einsum('xkij,xk->xij', bar_chris, d1.lapse)
                       + 2.0 * np.einsum('xi,xj->xij', d1.phi, d1.lapse)
@@ -193,9 +205,9 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background) :
                   + 12.0 * bssn_vars.lapse[:,np.newaxis] * np.einsum('xij,xj->xi', bar_A_UU, d1.phi)
                   + 2.0 * bssn_vars.lapse[:,np.newaxis] * np.einsum('xjk,xijk->xi', bar_A_UU, Delta_ULL)
                   - four_thirds * bssn_vars.lapse[:,np.newaxis] * np.einsum('xij,xj->xi', bar_gamma_UU, d1.K)
-                  - 2.0 * eight_pi_G * bssn_vars.lapse[:,np.newaxis] * np.einsum('xij,xj->xi', bar_gamma_UU, emtensor.Si))
+                  - 2.0 * eight_pi_G * bssn_vars.lapse[:,np.newaxis] * np.einsum('xij,xj->xi', bar_gamma_UU, EMtensor.Si))
     
-    dlambdadt -= ((2*bssn_vars.lapse[:,np.newaxis]*b)/(1+b))*(np.einsum("xij, xj->xi",bar_gamma_UU, N_L) - eight_pi_G * np.einsum("xij, xj->xi",bar_gamma_UU, S_L))
+    dlambdadt -= ((2*bssn_vars.lapse[:,np.newaxis]*b)/(1+b))*(np.einsum("xij, xj->xi",bar_gamma_UU, N_L) - eight_pi_G * np.einsum("xij, xj->xi",bar_gamma_UU, EMtensor.Si))
 
     # Rescale because we want change in lambda not Lambda
     dlambdadt[:] *= background.scaling_vector
@@ -208,7 +220,7 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background) :
     r = grid.r
     N = grid.num_points
 
-    # Import usefull quantities
+    # Calculate usefull quantities
     Trace_Omega = get_trace(Omega_LL, gamma_UU)
     TraceFree_Omega_LL = Omega_LL - one_third * gamma_LL * Trace_Omega[:, np.newaxis, np.newaxis]
     TraceFree_Omega_UU = np.einsum("xia, xjb,xij->xab",gamma_UU,gamma_UU,TraceFree_Omega_LL)
@@ -243,98 +255,16 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background) :
     
     DKDT = dKdt + 4 * np.pi * bssn_vars.lapse  * (bar_S_GB)
     
+    # in this function I just added the bar_L_GB in the last line (which was forgotten previously)
     dvdt =  ((bssn_vars.lapse * bssn_vars.K * v 
                  + 2.0 * bssn_vars.lapse * em4phi * np.einsum('xij,xi,xj->x', bar_gamma_UU, d1.phi, d1_u)
                  +       bssn_vars.lapse * em4phi * np.einsum('xij,xij->x', bar_gamma_UU, d2_u)
                  +                         em4phi * np.einsum('xij,xi,xj->x', bar_gamma_UU, d1.lapse, d1_u)
                  -       bssn_vars.lapse * em4phi * np.einsum('xij,xkij,xk->x', bar_gamma_UU, bar_chris, d1_u)) 
                  
-                 - bssn_vars.lapse * matter.dVdu(u))
-    
+                 - bssn_vars.lapse * matter.dVdu(u)
 
-
-
-
-
-
-
-
-    """
-    # Now we build the matrices (FULL 5X5)
-    M = np.zeros((N,4,4))
-    #U = np.zeros((N,5,1))
-    Z = np.zeros((N,4,1))
-    A_LL = np.zeros([N, 3, 3])
-
-    # Filling of each comonent
-    ir, it, ip = i_r, i_t, i_p
-
-    # Construction of M matrix, currently a 5x5, but if it ends up being singular -> 4x4 matrix
-    # CURRENT PHILOSOPHY: Calculate the evolution equations, only scale dadt all the way at the end
-    # First row
-    M[:, 0 , 0] =  X_ij_UU[:,ir, ir, ir, ir ]
-    M[:, 0 , 1] =  X_ij_UU[:,ir, ir, it, it ]
-    M[:, 0 , 2] =  X_ij_UU[:,ir, ir, ip, ip ]
-    M[:, 0 , 3] =  Y_ij[:,ir, ir]
-    M[:, 0 , 4] = 0
-
-    # Second row
-    M[:, 1 , 0] =  X_ij_UU[:,it, it, ir, ir ]
-    M[:, 1 , 1] =  X_ij_UU[:,it, it, it, it ]
-    M[:, 1 , 2] =  X_ij_UU[:,it, it, ip, ip ]
-    M[:, 1 , 3] =  Y_ij[:,it, it]
-    M[:, 1 , 4] =  0
-
-    # Third row
-    M[:, 2 , 0] =  X_ij_UU[:,ip, ip, ir, ir ]
-    M[:, 2 , 1] =  X_ij_UU[:,ip, ip, it, it ]
-    M[:, 2 , 2] =  X_ij_UU[:,ip, ip, ip, ip ]
-    M[:, 2 , 3] =  Y_ij[:,ip, ip]
-    M[:, 2 , 4] = 0
-
-    # Fourth row
-    M[:, 3 , 0] = X_K_UU[:, ir, ir ]
-    M[:, 3 , 1] = X_K_UU[:, it, it ]
-    M[:, 3 , 2] = X_K_UU[:, ip, ip ]
-    M[:, 3 , 3] = Y_K
-    M[:, 3 , 4] = 0
-
-    # Fifth row
-    M[:, 4 , 0] = X_Pi_UU[:, ir, ir ]
-    M[:, 4 , 1] = X_Pi_UU[:, it, it ]
-    M[:, 4 , 2] = X_Pi_UU[:, ip, ip ]
-    M[:, 4 , 3] = Y_Pi
-    M[:, 4 , 4] = 1
-
-    # Evolution equation matrix
-    # The matrix you are trying to solve for should not be filled with empty solution matrices.
-
-    U[:,0] = U_dadt[:,ir, ir]
-    U[:,1] = U_dadt[:,it, it]
-    U[:,2] = U_dadt[:,ip, ip]
-    U[:,3] = U_dKdt
-    U[:,4] = U_dPidt
-
-
-    # RHS matrix
-    Z[:,0, 0] = Z_A_LL[:, ir, ir]
-    Z[:,1, 0] = Z_A_LL[:, it, it]
-    Z[:,2, 0] = Z_A_LL[:, ip, ip]
-    Z[:,3, 0] = DKDT
-    Z[:,4, 0] = dvdt
-
-    # After solving the matrix system
-    dU = np.linalg.solve(M, Z)[..., 0]   # shape (N,5)
-
-    A_LL[:, ir, ir] = dU[:, 0]
-    A_LL[:, it, it] = dU[:, 1]
-    A_LL[:, ip, ip] = dU[:, 2]
-
-    bssn_rhs.a_LL = background.inverse_scaling_matrix * A_LL
-    bssn_rhs.K = dU[:, 3]
-    dPidt = dU[:, 4]
-    return dPidt
-    """
+                 + bssn_vars.lapse * d1Lambdadu * bar_L_GB) 
     
     # Iteration 2 (STILL GIVES SINGULAR MATRIX ERROR)
     M = np.zeros((N,4,4))
@@ -361,6 +291,7 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background) :
     M[:,2,3] = Y_Pi
     M[:,3,3] = 1.0
 
+
     # RHS
     Z[:,0,0] = Z_A_LL[:,ir,ir]
     Z[:,1,0] = Z_A_LL[:,it,it] + Z_A_LL[:,ip,ip]
@@ -377,7 +308,10 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background) :
     bssn_rhs.a_LL = background.inverse_scaling_matrix * A_LL
     bssn_rhs.K    = dU[:,2]
     dPidt         = dU[:,3]
-    return dPidt
+
+    dudt =  bssn_vars.lapse * v 
+
+    return (dudt, dPidt)
 
     ####################################################################################################
     # end of bssn rhs
