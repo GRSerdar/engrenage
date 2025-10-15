@@ -260,35 +260,40 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, g
                  + bssn_vars.lapse * d1Lambdadu * bar_L_GB) 
     
     # Iteration 2 (STILL GIVES SINGULAR MATRIX ERROR)
-    M = np.zeros((N,4,4))
-    Z = np.zeros((N,4,1))
+    #M = np.zeros((N,4,4))
+    #Z = np.zeros((N,4,1))
+    d = 4
+    M = np.zeros((N,d,d))
+    Z = np.zeros((N,d,1))
 
     ir, it, ip = i_r, i_t, i_p
 
-    # A–A block
+    # First row
     M[:,0,0] = X_ij_UU[:,ir,ir,ir,ir]
     M[:,0,1] = X_ij_UU[:,ir,ir,it,it] + X_ij_UU[:,ir,ir,ip,ip]
-    M[:,1,0] = X_ij_UU[:,it,it,ir,ir] + X_ij_UU[:,ip,ip,ir,ir]
-    M[:,1,1] = (X_ij_UU[:,it,it,it,it] + X_ij_UU[:,it,it,ip,ip] + X_ij_UU[:,ip,ip,it,it] + X_ij_UU[:,ip,ip,ip,ip])
-
-    # A–K and K–A couplings
     M[:,0,2] = Y_ij[:,ir,ir]
-    M[:,1,2] = Y_ij[:,it,it] + Y_ij[:,ip,ip]
+
+    # Second row
+    M[:,1,0] = X_ij_UU[:,it,it,ir,ir]
+    M[:,1,1] = X_ij_UU[:,it,it,it,it] + X_ij_UU[:,it,it,ip,ip]
+    M[:,1,2] = Y_ij[:, it, it]
+
+    # third row
     M[:,2,0] = X_K_UU[:,ir,ir]
     M[:,2,1] = X_K_UU[:,it,it] + X_K_UU[:,ip,ip]
     M[:,2,2] = Y_K
 
-    # A–Pi, K–Pi, Pi–Pi
-    M[:,0,3] = X_Pi_UU[:,ir,ir]
-    M[:,1,3] = X_Pi_UU[:,it,it] + X_Pi_UU[:,ip,ip]
-    M[:,2,3] = Y_Pi
+    # fourth row
+    M[:,3,0] = X_Pi_UU[:,ir,ir]
+    M[:,3,1] = X_Pi_UU[:,it,it] + X_Pi_UU[:,ip,ip]
+    M[:,3,2] = Y_Pi
     M[:,3,3] = 1.0
 
-    print("M: ", M)
-    
+    print('M: ', M)
+
     # RHS
     Z[:,0,0] = Z_A_LL[:,ir,ir]
-    Z[:,1,0] = Z_A_LL[:,it,it] + Z_A_LL[:,ip,ip]
+    Z[:,1,0] = Z_A_LL[:,it,it] 
     Z[:,2,0] = DKDT
     Z[:,3,0] = dvdt
 
