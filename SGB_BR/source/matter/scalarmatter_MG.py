@@ -81,7 +81,7 @@ class ScalarMatter :
 
         ###########################################################################################################################
         ##### Modified gravity BR matter Term Corrections #########################################################################
-        
+
         scalar_emtensor.rho += gb.rho_GB
         scalar_emtensor.Si  += gb.S_GB_L
 

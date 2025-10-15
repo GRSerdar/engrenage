@@ -51,7 +51,6 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
 
     s_times_d1_a = background.scaling_matrix[:,:,:,np.newaxis] * d1.a_LL
     a_times_d1_s = bssn_vars.a_LL[:,:,:,np.newaxis] * background.d1_scaling_matrix
-
     # To deal with the scaling matrix indices being jki in stead of ijk 
     a_times_d1_s = np.moveaxis(a_times_d1_s, 3, 1)   # xbca -> xabc
     s_times_d1_a = np.moveaxis(s_times_d1_a, 3, 1)   # xbca -> xabc

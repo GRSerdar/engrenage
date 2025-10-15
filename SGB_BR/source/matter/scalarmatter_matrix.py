@@ -135,8 +135,8 @@ class ScalarMatter :
 
         # \Omega_i (Note that the first term can be zero if coupling funciton is only of first order)
         Omega_L = (- 4 * d2_Lambda_d2_u(lambda_GB)[:,np.newaxis] * self.v[:,np.newaxis]* self.d1_u
-                   - 4 * d1_Lambda_d1_u(lambda_GB)[:,np.newaxis] * (self.d1_v + np.einsum("xjb, xib,xj->xi",bar_gamma_UU, bar_A_LL,self.d1_u))
-                   + one_third * bssn_vars.K[:,np.newaxis] * self.d1_u)
+                   - 4 * d1_Lambda_d1_u(lambda_GB)[:,np.newaxis] * (self.d1_v + np.einsum("xjb, xib,xj->xi",bar_gamma_UU, bar_A_LL,self.d1_u)
+                   + one_third * bssn_vars.K[:,np.newaxis] * self.d1_u))
         
         Omega_U = np.einsum("xij, xi->xj",gamma_UU, Omega_L)
         
@@ -184,7 +184,8 @@ class ScalarMatter :
                  - bssn_vars.K * bssn_vars.K)
         
         bar_F_LL = (ilapse[:,np.newaxis,np.newaxis] * DkDl_lapse
-                    + e4phi[:,np.newaxis,np.newaxis] * (bar_A_LL_A_UL - two_thirds * (bssn_vars.K[:,np.newaxis,np.newaxis] - ilapse[:,np.newaxis,np.newaxis] * div_shift[:,np.newaxis,np.newaxis]) * bar_A_LL))
+                    + e4phi[:,np.newaxis,np.newaxis] * (bar_A_LL_A_UL - two_thirds * (bssn_vars.K[:,np.newaxis,np.newaxis] 
+                                                                                      - ilapse[:,np.newaxis,np.newaxis] * div_shift[:,np.newaxis,np.newaxis]) * bar_A_LL))
         
         # F_L_U 
         # F_L_U = np.einsum("xjb, xij->xib",gamma_UU, F_LL)

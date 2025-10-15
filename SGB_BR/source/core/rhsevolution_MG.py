@@ -36,8 +36,8 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
     gauge_coefficients = (a, b)
 
     # Coupling constant
-    lambda_GB = 0.05
-    #lambda_GB = 0 #(should just be GR case)
+    #lambda_GB = 0.05
+    lambda_GB = 0 #(should just be GR case)
     
     # First the metric vars in tensor form - see bssnvars.py
     bssn_vars = BSSNVars(N)
@@ -102,7 +102,7 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
 
 
     # (2) Calculating the EM tensor projections
-    my_emtensor  = matter.get_emtensor(r, bssn_vars, d1, d2, bssn_rhs, grid,  background, gb)
+    matter.get_emtensor(r, bssn_vars, d1, d2, bssn_rhs, grid,  background, gb)
     # Checking the runtime for matter 
     if (timing_on) :     
         check_time_3 = time.time()

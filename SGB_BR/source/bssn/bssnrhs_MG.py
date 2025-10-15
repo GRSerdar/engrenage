@@ -65,9 +65,6 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, g
     # Importing EM tensor (which already holds the backreaction corrections in rho and S_L #############
 
     EMtensor = matter.get_emtensor(r, bssn_vars, d1, d2, bssn_rhs, grid, background, gb)
-    print(EMtensor.rho)
-    print(EMtensor.Si)
-    print(EMtensor.S)
 
     u = matter.u
     v = matter.v
@@ -227,10 +224,6 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, g
     TraceFree_M_LL = M_LL - one_third * gamma_LL * Trace_M[:, np.newaxis, np.newaxis]
     TraceFree_M_UU = np.einsum("xia, xjb, xab->xij",gamma_UU, gamma_UU, TraceFree_M_LL)
 
-    # inverse scaling 
-    s = background.scaling_matrix
-    invs = background.inverse_scaling_matrix
-
     # Define dirac deltas
     delta_U_L = np.einsum("xim, xmk->xik",gamma_UU, gamma_LL)
 
@@ -251,7 +244,7 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, g
     Y_Pi = (four_thirds) * d1Lambdadu * Trace_M
 
     # the RHS 
-    Z_A_LL = background.scaling_matrix * dadt + (bssn_vars.lapse[:, np.newaxis, np.newaxis] * em4phi[:,np.newaxis, np.newaxis] * (bar_TraceFree_S_GB_LL))
+    Z_A_LL = background.scaling_matrix * dadt - (bssn_vars.lapse[:, np.newaxis, np.newaxis] * em4phi[:,np.newaxis, np.newaxis] * 8*np.pi * (bar_TraceFree_S_GB_LL))
     
     DKDT = dKdt + 4 * np.pi * bssn_vars.lapse  * (bar_S_GB)
     
@@ -276,7 +269,7 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, g
     M[:,0,0] = X_ij_UU[:,ir,ir,ir,ir]
     M[:,0,1] = X_ij_UU[:,ir,ir,it,it] + X_ij_UU[:,ir,ir,ip,ip]
     M[:,1,0] = X_ij_UU[:,it,it,ir,ir] + X_ij_UU[:,ip,ip,ir,ir]
-    M[:,1,1] = (X_ij_UU[:,it,it,it,it] + X_ij_UU[:,it,it,ip,ip]+ X_ij_UU[:,ip,ip,it,it] + X_ij_UU[:,ip,ip,ip,ip])
+    M[:,1,1] = (X_ij_UU[:,it,it,it,it] + X_ij_UU[:,it,it,ip,ip] + X_ij_UU[:,ip,ip,it,it] + X_ij_UU[:,ip,ip,ip,ip])
 
     # A–K and K–A couplings
     M[:,0,2] = Y_ij[:,ir,ir]
@@ -291,7 +284,8 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, g
     M[:,2,3] = Y_Pi
     M[:,3,3] = 1.0
 
-
+    print("M: ", M)
+    
     # RHS
     Z[:,0,0] = Z_A_LL[:,ir,ir]
     Z[:,1,0] = Z_A_LL[:,it,it] + Z_A_LL[:,ip,ip]
