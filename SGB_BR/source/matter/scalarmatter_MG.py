@@ -1,9 +1,12 @@
+#scalarmatter_MG.py
+
 import numpy as np
 
 from core.grid import *
 from bssn.bssnstatevariables import *
 from bssn.bssnvars import *
 from bssn.tensoralgebra import *
+from bssn.ModifiedGravity import * 
 
 
 class ScalarMatter :
@@ -39,12 +42,10 @@ class ScalarMatter :
         return self.scalar_mu * self.scalar_mu * u
     
     ###########################################################################################################################
-    # The coupling function of the gauss bonnet term can change (now it is lambda(phi) = lambda_GB phi)
-    
     ###########################################################################################################################
 
 
-    def get_emtensor(self, r, bssn_vars, bssn_d1, bssn_d2, bssn_rhs, grid, background, gb):
+    def get_emtensor(self, r, bssn_vars, background, gb):
         
         assert self.matter_vars_set, 'Matter vars not set'
         
@@ -82,6 +83,7 @@ class ScalarMatter :
         ###########################################################################################################################
         ##### Modified gravity BR matter Term Corrections #########################################################################
 
+        # Comment out next two lines to achieve standard GR
         scalar_emtensor.rho += gb.rho_GB
         scalar_emtensor.Si  += gb.S_GB_L
 

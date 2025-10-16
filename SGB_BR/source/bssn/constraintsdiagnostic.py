@@ -2,6 +2,7 @@
 
 # python modules
 import numpy as np
+from bssn.ModifiedGravity import * 
 
 # homemade code
 from core.grid import *
@@ -40,6 +41,11 @@ def get_constraints_diagnostic(states_over_time, t, grid: Grid, background, matt
         # get the derivatives of the bssn vars in tensor form - see bssnvars.py
         d1 = grid.get_d1_metric_quantities(state)
         d2 = grid.get_d2_metric_quantities(state)       
+
+        gb = GBVars(N)
+        # Comment out next two lines to achieve standard GR
+        get_gb_core(gb, r, bssn_vars, d1, d2, grid, background)
+        get_esgb_br_terms(gb, r, matter, bssn_vars, d1, d2, grid, background, 0.05, chi0=0.15)
         
         # Calculate some useful quantities
         ########################################################
@@ -75,7 +81,7 @@ def get_constraints_diagnostic(states_over_time, t, grid: Grid, background, matt
         # Matter sources
         # my_emtensor = matter.get_emtensor(r, bssn_vars, background)
 
-        my_emtensor = matter.get_emtensor(r, bssn_vars, d1, d2, bssn_rhs, grid, background)
+        my_emtensor = matter.get_emtensor(r, bssn_vars, background, gb)
 
         # End of: Calculate some useful quantities, now start diagnostic
         #################################################################

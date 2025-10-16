@@ -1,13 +1,15 @@
-# bssnrhs.py
+# bssnrhs_MG.py
 # as in Etienne https://arxiv.org/abs/1712.07658v2
 # see also Baumgarte https://arxiv.org/abs/1211.6632 for the eqns with matter
 
 import numpy as np
 from bssn.tensoralgebra import *
 from bssn.bssnvars import *
+from bssn.ModifiedGravity import * 
+
 
 # phi is the (exponential) conformal factor, that is \gamma_ij = e^{4\phi} \bar\gamma_{ij}
-def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, gauge_coefficients):
+def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, gauge_coefficients, EMtensor):
     ####################################################################################################
     # Get all the useful quantities that will be used in the rhs
 
@@ -63,9 +65,7 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, g
 
     ####################################################################################################
     # Importing EM tensor (which already holds the backreaction corrections in rho and S_L #############
-
-    EMtensor = matter.get_emtensor(r, bssn_vars, d1, d2, bssn_rhs, grid, background, gb)
-
+    #EMtensor = matter.get_emtensor(r, bssn_vars, d1, d2, bssn_rhs, grid, background, gb)
     u = matter.u
     v = matter.v
 
@@ -124,7 +124,7 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, g
     # Extra term to RHS due to Modified Gauge 
     dKdt += ((bssn_vars.lapse*b)/(4*(1+b))) * (Trace_M - 2 * eight_pi_G * EMtensor.rho)
     
-    # We put this to zero atm
+    # We comment this out in the MG case, but to verify standard GR we can use it
     #bssn_rhs.K = dKdt 
 
     ####################################################################################################    
@@ -163,10 +163,12 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, g
     dadt = ( - two_thirds * bar_div_shift[:,np.newaxis,np.newaxis] * bssn_vars.a_LL
              + bssn_vars.lapse[:,np.newaxis,np.newaxis] * (- 2.0 * r_AikAkj
                                                  + bssn_vars.K[:,np.newaxis,np.newaxis] * bssn_vars.a_LL)
-             + em4phi[:,np.newaxis,np.newaxis] * (dadt_TF_part - bssn_vars.lapse[:,np.newaxis,np.newaxis] * eight_pi_G 
+             + em4phi[:,np.newaxis,np.newaxis] * (dadt_TF_part #- bssn_vars.lapse[:,np.newaxis,np.newaxis] * eight_pi_G #|| Don't know why this was there||
                                                   - one_third * trace * r_bar_gamma_LL))
-
+    
+    # We comment this out in the MG case, but to verify standard GR we can use it
     #bssn_rhs.a_LL = dadt   
+    #print(dadt)
 
     ####################################################################################################    
     # lambda^i is the rescaled version of the constrained quantity \Lambda^i = \Delta^i
@@ -248,7 +250,7 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, g
     
     DKDT = dKdt + 4 * np.pi * bssn_vars.lapse  * (bar_S_GB)
     
-    # in this function I just added the bar_L_GB in the last line (which was forgotten previously)
+    dudt =  bssn_vars.lapse * v 
     dvdt =  ((bssn_vars.lapse * bssn_vars.K * v 
                  + 2.0 * bssn_vars.lapse * em4phi * np.einsum('xij,xi,xj->x', bar_gamma_UU, d1.phi, d1_u)
                  +       bssn_vars.lapse * em4phi * np.einsum('xij,xij->x', bar_gamma_UU, d2_u)
@@ -259,9 +261,8 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, g
 
                  + bssn_vars.lapse * d1Lambdadu * bar_L_GB) 
     
-    # Iteration 2 (STILL GIVES SINGULAR MATRIX ERROR)
-    #M = np.zeros((N,4,4))
-    #Z = np.zeros((N,4,1))
+    
+    # Matrix inversion
     d = 4
     M = np.zeros((N,d,d))
     Z = np.zeros((N,d,1))
@@ -289,8 +290,6 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, g
     M[:,3,2] = Y_Pi
     M[:,3,3] = 1.0
 
-    print('M: ', M)
-
     # RHS
     Z[:,0,0] = Z_A_LL[:,ir,ir]
     Z[:,1,0] = Z_A_LL[:,it,it] 
@@ -308,9 +307,11 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, g
     bssn_rhs.K    = dU[:,2]
     dPidt         = dU[:,3]
 
-    dudt =  bssn_vars.lapse * v 
-
+    # MG case
     return (dudt, dPidt)
+
+    # Checking standard GR
+    #return (dudt, dvdt)
 
     ####################################################################################################
     # end of bssn rhs

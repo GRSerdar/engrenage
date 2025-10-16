@@ -1,4 +1,4 @@
-#rhsevolution.py
+#rhsevolution_MG.py
 
 # python modules
 import numpy as np
@@ -30,14 +30,33 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
     NUM_VARS = grid.NUM_VARS
     unflattened_state = current_state.reshape(NUM_VARS, -1)
 
+
+    """
+    if MG == True:   
+        a = 0.2
+        b = 0.4
+        lambda_GB = 0.05
+    else:
+        a = 0
+        b = 0
+        lambda_GB = 0
+
+    gauge_coefficients = (a, b)
+    """
+
     # Constant factors needed in Modified Gauge (for modified gravity)
     a = 0.2
     b = 0.4
+    
+    # In the standard GR case
+    #a = 0
+    #b = 0
     gauge_coefficients = (a, b)
 
     # Coupling constant
-    #lambda_GB = 0.05
-    lambda_GB = 0 #(should just be GR case)
+    lambda_GB = 0.05
+    
+    #lambda_GB = 0 #(should just be GR case)
     
     # First the metric vars in tensor form - see bssnvars.py
     bssn_vars = BSSNVars(N)
@@ -92,17 +111,17 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
         print("time for algebraic constraints is, ", check_time_2-check_time_1)    
     
     ####################################################################################################  
-    # Structured way of calling all big ombjects in right order.
+    # Structured way of calling all big objects in right order.
     ####################################################################################################
 
     # (1) Calculating all MG related quantities at once in an object, and then passing this object trough
     gb = GBVars(N)
+    # Comment out next two lines to achieve standard GR
     get_gb_core(gb, r, bssn_vars, d1, d2, grid, background)
     get_esgb_br_terms(gb, r, matter, bssn_vars, d1, d2, grid, background, lambda_GB, chi0=0.15)
 
-
     # (2) Calculating the EM tensor projections
-    matter.get_emtensor(r, bssn_vars, d1, d2, bssn_rhs, grid,  background, gb)
+    EMtensor = matter.get_emtensor(r, bssn_vars, background, gb)
     # Checking the runtime for matter 
     if (timing_on) :     
         check_time_3 = time.time()
@@ -110,7 +129,7 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
   
 
     # (3) Calculating evolution equations + returning (dudt, dvdt) to pass trough to matter_rhs
-    scalar_tuple = get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, gauge_coefficients)
+    scalar_tuple = get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, gauge_coefficients, EMtensor)
 
 
     # (4) imports scalar tuple (dudt, dvdt) and gives them advection
@@ -133,7 +152,6 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
     bssn_rhs.shift_U += (0.75 * bssn_vars.lambda_U - eta * bssn_vars.shift_U
                                -((a)/(1+a)) * (0.75 * bssn_vars.lambda_U
                                        + bssn_vars.lapse[:,np.newaxis] * np.einsum("xia, xa->xi",gamma_UU, d1.lapse)))
-
 
     ########################################################################################################
     # ADVECTION
