@@ -212,7 +212,7 @@ class ScalarMatter :
                                                              - 2*np.einsum("xk, xji->xijk",bssn_d1.phi, bar_A_LL)
                                                              + 2*np.einsum("xij, xml, xl, xmk->xijk",bar_gamma_LL, bar_gamma_UU, bssn_d1.phi, bar_A_LL)
                                                              + 2*np.einsum("xik, xml, xl, xjm->xijk",bar_gamma_LL, bar_gamma_UU, bssn_d1.phi, bar_A_LL))
-        """
+        
         # Trace Free S_GB
         TraceFree_S_GB_LL = (- two_thirds * TraceFree_Omega_LL*(F[:,np.newaxis, np.newaxis] + 2 * (ilapse[:,np.newaxis, np.newaxis] * D2_lapse[:,np.newaxis, np.newaxis] - Asquared[:,np.newaxis, np.newaxis]))
                              - 2 * TraceFree_M_LL*(  Trace_Omega[:,np.newaxis, np.newaxis] 
@@ -241,7 +241,7 @@ class ScalarMatter :
                 - 4 * np.einsum("xij, xj, xi->x",gamma_UU, N_L, Omega_L)
                 + 4 * d1_Lambda_d1_u(lambda_GB)*d1_Lambda_d1_u(lambda_GB) * Trace_M * L_GB)
         
-        """
+        
         
         # Trace Free S_GB
         bar_TraceFree_S_GB_LL = (- two_thirds * TraceFree_Omega_LL*(bar_F[:,np.newaxis, np.newaxis] + 2 * (ilapse[:,np.newaxis, np.newaxis] * D2_lapse[:,np.newaxis, np.newaxis] - Asquared[:,np.newaxis, np.newaxis]))

@@ -6,6 +6,8 @@ import numpy as np
 from bssn.tensoralgebra import *
 from bssn.bssnvars import *
 from bssn.ModifiedGravity import * 
+import mpmath as mp
+
 
 
 # phi is the (exponential) conformal factor, that is \gamma_ij = e^{4\phi} \bar\gamma_{ij}
@@ -25,6 +27,13 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, g
 
     gamma_UU = em4phi[:,np.newaxis,np.newaxis] * bar_gamma_UU
     gamma_LL = e4phi [:,np.newaxis,np.newaxis] * bar_gamma_LL
+      
+    # Derivatives of A_LL
+    s_times_d1_a = background.scaling_matrix[:,:,:,np.newaxis] * d1.a_LL
+    a_times_d1_s = bssn_vars.a_LL[:,:,:,np.newaxis] * background.d1_scaling_matrix
+    # To deal with the scaling matrix indices being jki in stead of ijk 
+    a_times_d1_s = np.moveaxis(a_times_d1_s, 3, 1)   # xbca -> xabc
+    s_times_d1_a = np.moveaxis(s_times_d1_a, 3, 1)   # xbca -> xabc
 
     # The rescaled connections Delta^i, Delta^i_jk and Delta_ijk
     Delta_U, Delta_ULL, Delta_LLL = get_tensor_connections(r, bssn_vars.h_LL, d1.h_LL, background)
@@ -58,8 +67,10 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, g
     N_L      = gb.N_L
     Trace_M  = gb.Trace_M  
 
+    # We zero out these two terms 
     bar_TraceFree_S_GB_LL = gb.bar_TraceFree_S_GB_LL
-    bar_S_GB            = gb.bar_S_GB
+    bar_S_GB            =  gb.bar_S_GB
+
     Omega_LL            = gb.Omega_LL
     d1Lambdadu         = gb.d1Lambdadu
 
@@ -221,10 +232,31 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, g
 
     # Calculate usefull quantities
     Trace_Omega = get_trace(Omega_LL, gamma_UU)
+    
+    #TF_Omega_LL
     TraceFree_Omega_LL = Omega_LL - one_third * gamma_LL * Trace_Omega[:, np.newaxis, np.newaxis]
-    TraceFree_Omega_UU = np.einsum("xia, xjb,xij->xab",gamma_UU,gamma_UU,TraceFree_Omega_LL)
+    # Remove non zero numerical trace
+    #TraceFree_Omega_LL = TraceFree_Omega_LL- one_third * gamma_LL * get_trace(TraceFree_Omega_LL, gamma_UU)[:, np.newaxis, np.newaxis]
+    #print("TraceFree_Omega_LL: ",TraceFree_Omega_LL)
+
+    #TF_Omega_UU
+    TraceFree_Omega_UU = np.einsum("xia,xjb,xab->xij", gamma_UU, gamma_UU, TraceFree_Omega_LL)   
+    # Remove non zero numerical trace
+    #TraceFree_Omega_UU = TraceFree_Omega_UU- one_third * gamma_UU * get_trace(TraceFree_Omega_UU, gamma_LL)[:, np.newaxis, np.newaxis]
+    #print("TraceFree_Omega_UU: ",TraceFree_Omega_UU)
+
+    #TF_M_LL
     TraceFree_M_LL = M_LL - one_third * gamma_LL * Trace_M[:, np.newaxis, np.newaxis]
+    # Remove non zero numerical trace
+    #TraceFree_M_LL = TraceFree_M_LL- one_third * gamma_LL * get_trace(TraceFree_M_LL, gamma_UU)[:, np.newaxis, np.newaxis]
+    #print("TraceFree_M_LL: ", get_trace(TraceFree_M_LL, gamma_UU))
+
+    #TF_M_UU
     TraceFree_M_UU = np.einsum("xia, xjb, xab->xij",gamma_UU, gamma_UU, TraceFree_M_LL)
+    # Remove non zero numerical trace
+    #TraceFree_M_UU = TraceFree_M_UU- one_third * gamma_UU * get_trace(TraceFree_M_UU, gamma_LL)[:, np.newaxis, np.newaxis]
+    #print("TraceFree_M_UU: ",get_trace(TraceFree_M_UU, gamma_LL))
+
 
     # Define dirac deltas
     delta_U_L = np.einsum("xim, xmk->xik",gamma_UU, gamma_LL)
@@ -290,13 +322,33 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, g
     M[:,3,2] = Y_Pi
     M[:,3,3] = 1.0
 
+    ######## Debugging ########
+    # overwrites the previous functions with identity, only keeps final column
+    """
+    M = np.zeros((N,d,d))
+    M[:,0,0] = 1
+    M[:,1,1] = 1
+    M[:,2,2] = 1
+    M[:,3,3] = 1
+    """
+    ######## Debugging ########
+
     # RHS
     Z[:,0,0] = Z_A_LL[:,ir,ir]
     Z[:,1,0] = Z_A_LL[:,it,it] 
     Z[:,2,0] = DKDT
     Z[:,3,0] = dvdt
 
-    dU = np.linalg.solve(M, Z)[...,0]  # shape (N,4)
+    try:
+      dU = np.linalg.solve(M, Z)[...,0]  # usual solve
+    
+    except np.linalg.LinAlgError as e:
+      print("Matrix solve failed:", e)
+      det = np.linalg.det(M)
+      print("Last 5 determinants before crash:")
+      print(det[-5:])
+      raise  # re-raise so the crash message still propagates
+
 
     A_LL = np.zeros((N,3,3))
     A_LL[:,ir,ir] = dU[:,0]
@@ -306,12 +358,10 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, g
     bssn_rhs.a_LL = background.inverse_scaling_matrix * A_LL
     bssn_rhs.K    = dU[:,2]
     dPidt         = dU[:,3]
-
+    
+    
     # MG case
     return (dudt, dPidt)
-
-    # Checking standard GR
-    #return (dudt, dvdt)
 
     ####################################################################################################
     # end of bssn rhs

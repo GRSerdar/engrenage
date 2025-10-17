@@ -13,7 +13,7 @@ from bssn.ModifiedGravity import GBVars, get_gb_core, get_esgb_br_terms
 
 # function that returns the rhs for each of the field vars
 # see further details in https://github.com/GRChombo/engrenage/wiki/Useful-code-background
-def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, progress_bar, time_state) :
+def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, progress_bar, time_state, MG) :
 
     # Set to True/False for timing and tracking progress
     # This is best tested using the BH test, where only one timestep is run
@@ -29,9 +29,7 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
     N = grid.N
     NUM_VARS = grid.NUM_VARS
     unflattened_state = current_state.reshape(NUM_VARS, -1)
-
-
-    """
+    
     if MG == True:   
         a = 0.2
         b = 0.4
@@ -42,21 +40,6 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
         lambda_GB = 0
 
     gauge_coefficients = (a, b)
-    """
-
-    # Constant factors needed in Modified Gauge (for modified gravity)
-    a = 0.2
-    b = 0.4
-    
-    # In the standard GR case
-    #a = 0
-    #b = 0
-    gauge_coefficients = (a, b)
-
-    # Coupling constant
-    lambda_GB = 0.05
-    
-    #lambda_GB = 0 #(should just be GR case)
     
     # First the metric vars in tensor form - see bssnvars.py
     bssn_vars = BSSNVars(N)
