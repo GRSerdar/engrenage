@@ -297,8 +297,10 @@ def get_esgb_br_terms(gb_vars: GBVars, r, matter, bssn_vars, d1, d2, grid, backg
 
     # Omega_L and Omega_LL    
     Omega_L = (- 4 * d2Lambdadduu[:,np.newaxis] * matter.v[:,np.newaxis]* matter.d1_u
-                   - 4 * d2Lambdadduu[:,np.newaxis] * (matter.d1_v + np.einsum("xjb, xib,xj->xi",bar_gamma_UU, bar_A_LL,matter.d1_u)
+                   - 4 * d1Lambdadu[:,np.newaxis] * (matter.d1_v + np.einsum("xjb, xib,xj->xi",bar_gamma_UU, bar_A_LL,matter.d1_u)
                    + one_third * bssn_vars.K[:,np.newaxis] * matter.d1_u))
+
+    # BUGFIX: ChatGPT suggested d2Lambdadduu -> d1Lambdadu in the object above !!!
     
     Omega_U = np.einsum("xij, xi->xj",gamma_UU, Omega_L)
     
