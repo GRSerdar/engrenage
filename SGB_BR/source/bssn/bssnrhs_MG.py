@@ -8,8 +8,6 @@ from bssn.bssnvars import *
 from bssn.ModifiedGravity import * 
 import mpmath as mp
 
-
-
 # phi is the (exponential) conformal factor, that is \gamma_ij = e^{4\phi} \bar\gamma_{ij}
 def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, gauge_coefficients, EMtensor):
     ####################################################################################################
@@ -21,6 +19,7 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, g
 
     em4phi = np.exp(-4.0*bssn_vars.phi)
     e4phi  = 1.0/em4phi
+    ilapse = 1/ bssn_vars.lapse
 
     bar_gamma_LL = get_bar_gamma_LL(r, bssn_vars.h_LL, background)
     bar_gamma_UU = get_bar_gamma_UU(r, bssn_vars.h_LL, background)
@@ -68,10 +67,10 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, g
     Trace_M  = gb.Trace_M  
 
     # We zero out these two terms 
-    bar_TraceFree_S_GB_LL = gb.bar_TraceFree_S_GB_LL
-    bar_S_GB            =  gb.bar_S_GB
+    bar_TraceFree_S_GB_LL =   gb.bar_TraceFree_S_GB_LL
+    bar_S_GB            =     gb.bar_S_GB
 
-    Omega_LL            = gb.Omega_LL
+    Omega_LL            =gb.Omega_LL
     d1Lambdadu         = gb.d1Lambdadu
 
     ####################################################################################################
@@ -82,6 +81,14 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, g
 
     d1_u = matter.d1_u
     d2_u = matter.d2_u
+    ####################################################################################################
+    # Creation of matrix
+    # Construction of matrix to complete backreaction
+    r = grid.r
+    N = grid.num_points
+    d = 4
+    Z = np.zeros((N,d,1))
+    M = np.zeros((N,d,d))
     
     ####################################################################################################
     # First the conformal factor phi
@@ -128,7 +135,7 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, g
 
     # Calculate rhs (BackReaction Correction of EsGB is added)
     dKdt = (bssn_vars.lapse * (one_third * bssn_vars.K * bssn_vars.K 
-                               + bar_A_squared + 0.5 * eight_pi_G * (EMtensor.rho + EMtensor.S))
+                               + bar_A_squared + 0.5 * eight_pi_G * (0 * EMtensor.rho + 0* EMtensor.S))
             - em4phi * (bar_D2_lapse 
                         + 2.0 * np.einsum('xij,xi,xj->x', bar_gamma_UU, d1.lapse, d1.phi)))
     
@@ -136,7 +143,7 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, g
     dKdt += ((bssn_vars.lapse*b)/(4*(1+b))) * (Trace_M - 2 * eight_pi_G * EMtensor.rho)
     
     # We comment this out in the MG case, but to verify standard GR we can use it
-    #bssn_rhs.K = dKdt 
+    bssn_rhs.K = dKdt 
 
     ####################################################################################################    
     # a_ij is the rescaled version of the conformal, traceless part of the extrinsic curvature
@@ -156,7 +163,7 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, g
                         (- 2.0 * d2.phi
                          + 4.0 * np.einsum('xi,xj->xij', d1.phi, d1.phi)
                          + 2.0 * np.einsum('xkij,xk->xij', bar_chris, d1.phi)
-                         + bar_Rij - eight_pi_G * (EMtensor.Sij ))
+                         + bar_Rij - eight_pi_G * (0*EMtensor.Sij ))
                       - d2.lapse
                       + np.einsum('xkij,xk->xij', bar_chris, d1.lapse)
                       + 2.0 * np.einsum('xi,xj->xij', d1.phi, d1.lapse)
@@ -178,7 +185,7 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, g
                                                   - one_third * trace * r_bar_gamma_LL))
     
     # We comment this out in the MG case, but to verify standard GR we can use it
-    #bssn_rhs.a_LL = dadt   
+    bssn_rhs.a_LL = dadt   
     #print(dadt)
 
     ####################################################################################################    
@@ -224,52 +231,62 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, g
     
     bssn_rhs.lambda_U = dlambdadt
 
-
     ####################################################################################################
-    # Construction of matrix to complete backreaction
-    r = grid.r
-    N = grid.num_points
-
     # Calculate usefull quantities
     Trace_Omega = get_trace(Omega_LL, gamma_UU)
     
     #TF_Omega_LL
     TraceFree_Omega_LL = Omega_LL - one_third * gamma_LL * Trace_Omega[:, np.newaxis, np.newaxis]
-    # Remove non zero numerical trace
-    #TraceFree_Omega_LL = TraceFree_Omega_LL- one_third * gamma_LL * get_trace(TraceFree_Omega_LL, gamma_UU)[:, np.newaxis, np.newaxis]
-    #print("TraceFree_Omega_LL: ",TraceFree_Omega_LL)
 
     #TF_Omega_UU
     TraceFree_Omega_UU = np.einsum("xia,xjb,xab->xij", gamma_UU, gamma_UU, TraceFree_Omega_LL)   
-    # Remove non zero numerical trace
-    #TraceFree_Omega_UU = TraceFree_Omega_UU- one_third * gamma_UU * get_trace(TraceFree_Omega_UU, gamma_LL)[:, np.newaxis, np.newaxis]
-    #print("TraceFree_Omega_UU: ",TraceFree_Omega_UU)
 
     #TF_M_LL
     TraceFree_M_LL = M_LL - one_third * gamma_LL * Trace_M[:, np.newaxis, np.newaxis]
-    # Remove non zero numerical trace
-    #TraceFree_M_LL = TraceFree_M_LL- one_third * gamma_LL * get_trace(TraceFree_M_LL, gamma_UU)[:, np.newaxis, np.newaxis]
-    #print("TraceFree_M_LL: ", get_trace(TraceFree_M_LL, gamma_UU))
 
     #TF_M_UU
     TraceFree_M_UU = np.einsum("xia, xjb, xab->xij",gamma_UU, gamma_UU, TraceFree_M_LL)
-    # Remove non zero numerical trace
-    #TraceFree_M_UU = TraceFree_M_UU- one_third * gamma_UU * get_trace(TraceFree_M_UU, gamma_LL)[:, np.newaxis, np.newaxis]
-    #print("TraceFree_M_UU: ",get_trace(TraceFree_M_UU, gamma_LL))
 
+    ####################################################################################################
+    # EXtra objects for debugging (Sij^TF_perp + S_perp)
+    dAdt_perp = background.scaling_matrix * dadt
+    dKdt_perp = dKdt
+
+    perp_L_GB = (8* ilapse * e4phi * np.einsum("xij, xij->x",TraceFree_M_UU,dAdt_perp)
+                 - ilapse * four_thirds * Trace_M * dKdt_perp)
+     
+    perp_F = ilapse * dKdt_perp
+    
+    perp_F_LL = ilapse[:, np.newaxis, np.newaxis] * e4phi[:, np.newaxis, np.newaxis] * dAdt_perp
+    
+    perp_TF_S_GB_LL = (    - two_thirds * TraceFree_Omega_LL * perp_F[:, np.newaxis, np.newaxis]
+                           -  two_thirds * Trace_Omega[:, np.newaxis, np.newaxis] * perp_F_LL 
+                           +  2*np.einsum("xik, xck, xjc->xij",TraceFree_Omega_LL, gamma_UU, perp_F_LL)
+                           +  2*np.einsum("xjk, xck, xic->xij",TraceFree_Omega_LL, gamma_UU, perp_F_LL)
+                           -  four_thirds*np.einsum("xij, xkl, xkl->xij",gamma_LL, TraceFree_Omega_UU, perp_F_LL)
+                           -  8*d1Lambdadu[:, np.newaxis, np.newaxis]*d1Lambdadu[:, np.newaxis, np.newaxis] * TraceFree_M_LL * perp_L_GB[:, np.newaxis, np.newaxis])
+         
+    perp_S_GB = (four_thirds * Trace_Omega * perp_F 
+                 - 2 * np.einsum("xij,xij->x",TraceFree_Omega_UU, perp_F_LL)
+                 + 4*(d1Lambdadu* d1Lambdadu)*Trace_M*perp_L_GB)
+    
+    ####################################################################################################
 
     # Define dirac deltas
-    delta_U_L = np.einsum("xim, xmk->xik",gamma_UU, gamma_LL)
+    delta_U_L = np.einsum("xlm, xmi->xli",gamma_UU, gamma_LL)
+    #delta_U_L = np.identity(SPACEDIM)[:,np.newaxis]
 
     # Define all matrix components
     X_ij_UU = (np.einsum("xki, xlj->xijkl", delta_U_L, delta_U_L)*(1- (2*eight_pi_G/3)* Trace_Omega[:,np.newaxis,np.newaxis,np.newaxis,np.newaxis])
-               + 8*np.pi*(2*(np.einsum("xli, xjm, xmk->xijkl", delta_U_L, TraceFree_Omega_LL, gamma_UU) + np.einsum("xlj, xim, xmk->xijkl",delta_U_L, TraceFree_Omega_LL, gamma_UU))
+               + 0*8*np.pi*(2*(np.einsum("xli, xjm, xmk->xijkl", delta_U_L, TraceFree_Omega_LL, gamma_UU) 
+                             + np.einsum("xlj, xim, xmk->xijkl",delta_U_L, TraceFree_Omega_LL, gamma_UU))
                           - four_thirds * np.einsum("xij, xkl->xijkl", gamma_LL, TraceFree_Omega_UU)
                           - 64 * d1Lambdadu[:,np.newaxis,np.newaxis,np.newaxis,np.newaxis] * d1Lambdadu[:,np.newaxis,np.newaxis,np.newaxis,np.newaxis] * np.einsum("xij, xkl-> xijkl",TraceFree_M_LL, TraceFree_M_UU)))
     
     Y_ij = (8*np.pi / 3) * em4phi[:,np.newaxis, np.newaxis] * (32* d1Lambdadu[:,np.newaxis,np.newaxis] * d1Lambdadu[:,np.newaxis,np.newaxis]* TraceFree_M_LL * Trace_M[:,np.newaxis,np.newaxis] - 2 * TraceFree_Omega_LL)
 
-    X_K_UU = (8*np.pi / em4phi[:,np.newaxis, np.newaxis]) * (TraceFree_Omega_UU - 16 * d1Lambdadu[:,np.newaxis,np.newaxis] * d1Lambdadu[:,np.newaxis,np.newaxis] * Trace_M[:,np.newaxis,np.newaxis] * TraceFree_M_UU)
+    X_K_UU = (8*np.pi / em4phi[:,np.newaxis, np.newaxis]) * (TraceFree_Omega_UU 
+                                                             - 16 * d1Lambdadu[:,np.newaxis,np.newaxis] * d1Lambdadu[:,np.newaxis,np.newaxis] * Trace_M[:,np.newaxis,np.newaxis] * TraceFree_M_UU)
 
     Y_K = (1+(16*np.pi/3)*(4*d1Lambdadu*d1Lambdadu* Trace_M * Trace_M - Trace_Omega))
 
@@ -277,11 +294,13 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, g
 
     Y_Pi = (four_thirds) * d1Lambdadu * Trace_M
 
-    # the RHS 
-    Z_A_LL = background.scaling_matrix * dadt - (bssn_vars.lapse[:, np.newaxis, np.newaxis] * em4phi[:,np.newaxis, np.newaxis] * 8*np.pi * (bar_TraceFree_S_GB_LL))
+   # the RHS (Added perp terms here!!!!!!!!!!!)
+    Z_A_LL = background.scaling_matrix * dadt - (bssn_vars.lapse[:, np.newaxis, np.newaxis] * em4phi[:,np.newaxis, np.newaxis] * eight_pi_G * ((EMtensor.Sij- one_third*gamma_LL*(EMtensor.S)[:,np.newaxis,np.newaxis]) + bar_TraceFree_S_GB_LL + perp_TF_S_GB_LL))
+    DKDT = dKdt + 0.5* eight_pi_G * bssn_vars.lapse  * (EMtensor.rho + EMtensor.S + bar_S_GB + perp_S_GB)
     
-    DKDT = dKdt + 4 * np.pi * bssn_vars.lapse  * (bar_S_GB)
-    
+    ########################################################
+    #  Evolution equations for the scalar field and the cononical momentum
+
     dudt =  bssn_vars.lapse * v 
     dvdt =  ((bssn_vars.lapse * bssn_vars.K * v 
                  + 2.0 * bssn_vars.lapse * em4phi * np.einsum('xij,xi,xj->x', bar_gamma_UU, d1.phi, d1_u)
@@ -291,47 +310,57 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, g
                  
                  - bssn_vars.lapse * matter.dVdu(u)
 
-                 + bssn_vars.lapse * d1Lambdadu * bar_L_GB) 
+                 + bssn_vars.lapse * d1Lambdadu * (bar_L_GB + perp_L_GB)) 
     
+    ######## Debugging ################ Debugging ########
+    # While taking M= unit matrix 
+    # We add all the partial perps of the evolution equations
+
+
+
+    # dvdt += bssn_vars.lapse * d1Lambdadu * perp_L_GB
     
+    ######## Debugging ################ Debugging ########
+
     # Matrix inversion
-    d = 4
-    M = np.zeros((N,d,d))
-    Z = np.zeros((N,d,1))
-
-    ir, it, ip = i_r, i_t, i_p
-
-    # First row
-    M[:,0,0] = X_ij_UU[:,ir,ir,ir,ir]
-    M[:,0,1] = X_ij_UU[:,ir,ir,it,it] + X_ij_UU[:,ir,ir,ip,ip]
-    M[:,0,2] = Y_ij[:,ir,ir]
-
-    # Second row
-    M[:,1,0] = X_ij_UU[:,it,it,ir,ir]
-    M[:,1,1] = X_ij_UU[:,it,it,it,it] + X_ij_UU[:,it,it,ip,ip]
-    M[:,1,2] = Y_ij[:, it, it]
-
-    # third row
-    M[:,2,0] = X_K_UU[:,ir,ir]
-    M[:,2,1] = X_K_UU[:,it,it] + X_K_UU[:,ip,ip]
-    M[:,2,2] = Y_K
-
-    # fourth row
-    M[:,3,0] = X_Pi_UU[:,ir,ir]
-    M[:,3,1] = X_Pi_UU[:,it,it] + X_Pi_UU[:,ip,ip]
-    M[:,3,2] = Y_Pi
-    M[:,3,3] = 1.0
-
-    ######## Debugging ########
-    # overwrites the previous functions with identity, only keeps final column
-    """
-    M = np.zeros((N,d,d))
     M[:,0,0] = 1
     M[:,1,1] = 1
     M[:,2,2] = 1
     M[:,3,3] = 1
-    """
-    ######## Debugging ########
+
+    ir, it, ip = i_r, i_t, i_p
+
+    # First row
+
+    #M[:,0,0] = X_ij_UU[:,ir,ir,ir,ir]
+    #M[:,0,1] = X_ij_UU[:,ir,ir,it,it] + X_ij_UU[:,ir,ir,ip,ip]
+    #M[:,0,2] = Y_ij[:,ir,ir]
+
+    # Second row
+
+    #M[:,1,0] = X_ij_UU[:,it,it,ir,ir]
+    #M[:,1,1] = X_ij_UU[:,it,it,it,it] + X_ij_UU[:,it,it,ip,ip]
+    #M[:,1,2] = Y_ij[:, it, it]
+
+
+    # third row
+    #M[:,2,0] = X_K_UU[:,ir,ir]
+    #M[:,2,1] = X_K_UU[:,it,it] + X_K_UU[:,ip,ip]
+    #M[:,2,2] = Y_K
+
+    # fourth row
+    #M[:,3,0] = X_Pi_UU[:,ir,ir]
+    #M[:,3,1] = X_Pi_UU[:,it,it] + X_Pi_UU[:,ip,ip]
+    #M[:,3,2] = Y_Pi
+    M[:,3,3] = 1.0
+
+    ######## Debugging ################ Debugging ########
+    ######## Debugging ################ Debugging ########
+    # overwrites the previous functions with identity, only keeps final column
+   
+    
+    ######## Debugging ################ Debugging ########
+    ######## Debugging ################ Debugging ########
 
     # RHS
     Z[:,0,0] = Z_A_LL[:,ir,ir]
@@ -362,6 +391,8 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, g
     
     # MG case
     return (dudt, dPidt)
+    
+    #return (dudt, dvdt)
 
     ####################################################################################################
     # end of bssn rhs

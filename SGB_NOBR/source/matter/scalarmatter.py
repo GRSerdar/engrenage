@@ -29,28 +29,14 @@ class ScalarMatter :
         self.d2_u = []
         self.advec_u = []
         self.advec_v = []
-
-    ''' This is the standard kinetic term which we replace by a potential which includes self interactions
+        
     # The scalar potential
     def V_of_u(self, u) :
-        m = 1
         return 0.5 * self.scalar_mu * self.scalar_mu * u * u
 
     # Derivative of scalar potential
     def dVdu(self, u) :
-        m = 1
         return self.scalar_mu * self.scalar_mu * u
-    '''
-
-    # The scalar potential
-    def V_of_u(self, u) :
-        m = 1
-        return 0.5 * self.scalar_mu * self.scalar_mu * m*m* (1-np.exp(u/self.scalar_mu))**2
-
-    # Derivative of scalar potential
-    def dVdu(self, u) :
-        m = 1
-        return - m*m*self.scalar_mu*np.exp(u/self.scalar_mu)*(1-np.exp(u/self.scalar_mu))
     
     def get_emtensor(self, r, bssn_vars, background) :
     
@@ -59,7 +45,12 @@ class ScalarMatter :
         N = np.size(r) 
         scalar_emtensor = EMTensor(N)
         
+        #safe_phi = np.clip(bssn_vars.phi, -20, 20)
+        #em4phi = np.exp(-4.0*safe_phi)    
+        
         em4phi = np.exp(-4.0 * bssn_vars.phi)
+
+        #print(f"max(phi): {np.max(bssn_vars.phi)}, min(phi): {np.min(bssn_vars.phi)}")
 
         bar_gamma_UU = get_bar_gamma_UU(r, bssn_vars.h_LL, background)
         
@@ -116,7 +107,7 @@ class ScalarMatter :
         L_GB = compute_L_GB(bssn_vars, bssn_rhs, bssn_d1, bssn_d2, grid, background)
 
         chi = np.exp(-4.0* bssn_vars.phi) 
-        lambda_GB = 0.0
+        lambda_GB = 0.05
         #chi0 = 0.15
         chi0 = 0.05
         function_of_lambda= (lambda_GB)/(1+np.exp(-100*(chi-chi0)))

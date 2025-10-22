@@ -28,6 +28,10 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
     N = grid.N
     NUM_VARS = grid.NUM_VARS
     unflattened_state = current_state.reshape(NUM_VARS, -1)
+
+    # Constant factors needed in Modified Gauge (for modified gravity)
+    a = 0.2
+    b = 0.4
     
     # First the metric vars in tensor form - see bssnvars.py
     bssn_vars = BSSNVars(N)
@@ -66,7 +70,11 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
         assert False, "Warning, initial det(hat gamma) != det(bar gamma), check your initial data."
 
     # Now enforce it
+    em4phi = np.exp(-4.0*bssn_vars.phi)    
     bar_gamma_LL = get_bar_gamma_LL(r, bssn_vars.h_LL, background)
+    bar_gamma_UU = get_bar_gamma_UU(r, bssn_vars.h_LL, background)
+    gamma_UU = em4phi[:,np.newaxis,np.newaxis] *bar_gamma_UU
+
     new_bar_gamma_LL = rescaling_factor[:,np.newaxis,np.newaxis] * bar_gamma_LL
     bssn_vars.h_LL = (new_bar_gamma_LL - background.hat_gamma_LL) * background.inverse_scaling_matrix
         
@@ -81,7 +89,7 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
     # Calculate matter quantities and rhs
     
     # Matter sources, must be defined in matter class
-    my_emtensor  = matter.get_emtensor(r, bssn_vars, background)  
+    my_emtensor  = matter.get_emtensor(r, bssn_vars, d1, d2, bssn_rhs, grid,  background)
 
     if (timing_on) :     
         check_time_3 = time.time()
@@ -91,7 +99,7 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
     # now calculate the rhs values for bssn vars for the main grid (boundaries handled below)
 
     # Get the bssn rhs - see bssnrhs.py
-    get_bssn_rhs(bssn_rhs, r, bssn_vars, d1, d2, background, my_emtensor)
+    get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, my_emtensor)
     matter_rhs = matter.get_matter_rhs(r, bssn_vars, d1, d2, bssn_rhs, grid,  background)
 
     ########################################################################################################
@@ -99,11 +107,19 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
     ########################################################################################################
     # Set the gauge evolution for the lapse and shift
     # eta is the 1+log slicing damping coefficient - of order 1/M_adm of spacetime
-    
+
+    # Modified Harmonic Gauge is implemented
     eta = 1.0
     bssn_rhs.b_U     += 0.75 * bssn_rhs.lambda_U - eta * bssn_vars.b_U
-    bssn_rhs.shift_U += bssn_vars.b_U
-    bssn_rhs.lapse   += - 2.0 * bssn_vars.lapse * bssn_vars.K    
+    #bssn_rhs.shift_U += bssn_vars.b_U (no clue what this is)
+
+    bssn_rhs.lapse   += - 2.0 * bssn_vars.lapse * bssn_vars.K  
+    bssn_rhs.lapse   += 2*((a)/(1+a)) * bssn_vars.lapse * bssn_vars.K
+
+    bssn_rhs.shift_U += (0.75 * bssn_vars.lambda_U - eta * bssn_vars.shift_U
+                               -((a)/(1+a)) * (0.75 * bssn_vars.lambda_U
+                                       + bssn_vars.lapse[:,np.newaxis] * np.einsum("xia, xa->xi",gamma_UU, d1.lapse)))
+
 
     ########################################################################################################
     # ADVECTION

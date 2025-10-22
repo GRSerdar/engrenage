@@ -33,12 +33,13 @@ class GBVars:
         self.bar_S_GB               = np.zeros(N)
         self.Omega_LL               = np.zeros((N,3,3))
         self.d1Lambdadu             = np.zeros(N)  # scalar “coupling-derivative” factor
+        self.d2Lambdadduu           = np.zeros(N)  # scalar “coupling-derivative” factor
 
 # -------------------------------------------------
 # Core GB geometry 
 # -------------------------------------------------
 
-def get_gb_core(gb_vars: GBVars, r, bssn_vars, d1, d2, grid, background):
+def get_gb_core(gb_vars: GBVars, r, bssn_vars, d1, d2, grid, background,lambda_GB, chi0):
     """
     Calculates all GB objects that will also be used in other objects in other files 
     - bssn_rhs_MG.py (evolution equation dKdt and dLambdadt will be modified due to Llibert gauge)
@@ -152,9 +153,15 @@ def get_gb_core(gb_vars: GBVars, r, bssn_vars, d1, d2, grid, background):
 
     # Line2 
     # We put the \partial_\perp terms to zero
+    """
     Line2 = (8*( ilapse * np.einsum("xkl, xkl->x", TraceFree_M_UU, DkDl_lapse)
                 +  e4phi*( np.einsum("xkl,xkl->x",TraceFree_M_UU,bar_A_LL_A_UL)
                          - two_thirds*(bssn_vars.K - ilapse * div_shift)*np.einsum("xkl,xkl->x",TraceFree_M_UU,bar_A_LL))))
+    """
+    # Copy of line 2 where divshift is not a full covariant derivative 
+    Line2 = (8*( ilapse * np.einsum("xkl, xkl->x", TraceFree_M_UU, DkDl_lapse)
+                +  e4phi*( np.einsum("xkl,xkl->x",TraceFree_M_UU,bar_A_LL_A_UL)
+                         - two_thirds*(bssn_vars.K - ilapse * div_shift )*np.einsum("xkl,xkl->x",TraceFree_M_UU,bar_A_LL))))
 
     # D_L A_LL and raised version
     D_L_A_LL = e4phi[:, np.newaxis, np.newaxis, np.newaxis]*(  a_times_d1_s
@@ -179,6 +186,13 @@ def get_gb_core(gb_vars: GBVars, r, bssn_vars, d1, d2, grid, background):
 
     bar_L_GB =  Line1 + Line2 + Line3
 
+    # Coupling functions
+    # (S function)
+    chi = em4phi
+    S   = 1.0/(1.0 + np.exp(-100.0*(chi - chi0)))
+    d1Lambdadu = lambda_GB * S
+    d2Lambdadduu = 0.0 * S 
+
     # Store everything in gb_vars
     gb_vars.gamma_LL[:]       = gamma_LL
     gb_vars.gamma_UU[:]       = gamma_UU
@@ -189,7 +203,8 @@ def get_gb_core(gb_vars: GBVars, r, bssn_vars, d1, d2, grid, background):
     gb_vars.TraceFree_M_LL[:] = TraceFree_M_LL
     gb_vars.TraceFree_M_UU[:] = TraceFree_M_UU
     gb_vars.N_L[:]            = N_L
-
+    gb_vars.d1Lambdadu[:]     = d1Lambdadu
+    gb_vars.d2Lambdadduu[:]   = d2Lambdadduu
 
 # ------------------------------------------------------------
 # ESGB backreaction terms
@@ -200,9 +215,16 @@ def get_esgb_br_terms(gb_vars: GBVars, r, matter, bssn_vars, d1, d2, grid, backg
     Calculates all backreacdtion contributions 
     The barred variables in this function like bar_F, bar_F_LL, bar_S_GB and bar_S_GB_LL do not mean conformal contractions
     But rather not involving time derivatives of pape A or pape K
-    I agree it is bad notation for now
+    I agree the "barred" notation can cause confusion 
     """
     assert getattr(matter, "matter_vars_set", False), "Matter vars not set (call matter.set_matter_vars(...) first)."
+    
+    one_sixth   = 1.0/6.0
+    one_third   = 1.0/3.0
+    two_thirds  = 2.0/3.0
+    four_thirds = 4.0/3.0
+    two_ninths  = 2.0/9.0
+    three_halfs = 3.0/2.0
 
     # Shorthands from gb_vars (already filled by get_gb_core)
     gamma_UU = gb_vars.gamma_UU
@@ -214,6 +236,8 @@ def get_esgb_br_terms(gb_vars: GBVars, r, matter, bssn_vars, d1, d2, grid, backg
     TF_M_UU  = gb_vars.TraceFree_M_UU
     N_L      = gb_vars.N_L
     bar_L_GB = gb_vars.bar_L_GB
+    d1Lambdadu = gb_vars.d1Lambdadu
+    d2Lambdadduu = gb_vars.d2Lambdadduu
 
     # Basic factors
     em4phi = np.exp(-4.0*bssn_vars.phi)
@@ -224,12 +248,6 @@ def get_esgb_br_terms(gb_vars: GBVars, r, matter, bssn_vars, d1, d2, grid, backg
     # Conformal metrics (needed for a few contractions)
     bar_gamma_LL = get_bar_gamma_LL(r, bssn_vars.h_LL, background)
     bar_gamma_UU = get_bar_gamma_UU(r, bssn_vars.h_LL, background)
-
-    s_times_d1_a = background.scaling_matrix[:,:,:,np.newaxis] * d1.a_LL
-    a_times_d1_s = bssn_vars.a_LL[:,:,:,np.newaxis] * background.d1_scaling_matrix
-    # To deal with the scaling matrix indices being jki in stead of ijk 
-    a_times_d1_s = np.moveaxis(a_times_d1_s, 3, 1)   # xbca -> xabc
-    s_times_d1_a = np.moveaxis(s_times_d1_a, 3, 1)   # xbca -> xabc
 
     # Christoffels + helpers 
     Delta_U, Delta_ULL, Delta_LLL = get_tensor_connections(r, bssn_vars.h_LL, d1.h_LL, background)
@@ -242,17 +260,16 @@ def get_esgb_br_terms(gb_vars: GBVars, r, matter, bssn_vars, d1, d2, grid, backg
                      + d1.shift_U * background.inverse_scaling_vector[:,:,np.newaxis]) 
     div_shift = np.einsum('xii->x', d1_Shift_U) + np.einsum('xiij,xj->x', bar_chris, Shift_U)
 
+    s_times_d1_a = background.scaling_matrix[:,:,:,np.newaxis] * d1.a_LL
+    a_times_d1_s = bssn_vars.a_LL[:,:,:,np.newaxis] * background.d1_scaling_matrix
+    # To deal with the scaling matrix indices being jki in stead of ijk 
+    a_times_d1_s = np.moveaxis(a_times_d1_s, 3, 1)   # xbca -> xabc
+    s_times_d1_a = np.moveaxis(s_times_d1_a, 3, 1)   # xbca -> xabc
+
     # Laplacian & Hessian of lapse 
     D2_lapse = em4phi * (np.einsum('xij,xij->x', bar_gamma_UU, d2.lapse)
                          - np.einsum('xij,xkij,xk->x', bar_gamma_UU, bar_chris, d1.lapse)
                          + 2.0*np.einsum('xij,xi,xj->x', bar_gamma_UU, d1.lapse, d1.phi))
-
-    # Coupling functions
-    # (S function)
-    chi = em4phi
-    S   = 1.0/(1.0 + np.exp(-100.0*(chi - chi0)))
-    d1Lambdadu = lambda_GB * S
-    d2Lambdadduu = 0.0 * S 
 
     # A^L_L contractions & DkDl of lapse
     bar_A_LL_A_UL = np.einsum('xaj,xkj,xal->xkl', bar_gamma_UU, bar_A_LL, bar_A_LL)
@@ -267,6 +284,7 @@ def get_esgb_br_terms(gb_vars: GBVars, r, matter, bssn_vars, d1, d2, grid, backg
                   - 2 * np.einsum("xi, xj->xij",matter.d1_u, d1.phi)
                   - 2 * np.einsum("xj, xi->xij",matter.d1_u,d1.phi)
                   + 2 * np.einsum("xij, xml, xl, xm->xij",bar_gamma_LL, bar_gamma_UU, d1.phi, matter.d1_u))
+    
     
     D_L_A_LL = e4phi[:, np.newaxis, np.newaxis, np.newaxis]*(  a_times_d1_s
                                                              + s_times_d1_a
@@ -303,6 +321,7 @@ def get_esgb_br_terms(gb_vars: GBVars, r, matter, bssn_vars, d1, d2, grid, backg
 
     # barred F, F_ij
     bar_F = ( ilapse * D2_lapse + Asquared - bssn_vars.K * bssn_vars.K )
+    
     bar_F_LL = (ilapse[:,np.newaxis,np.newaxis] * DkDl_lapse
                     + e4phi[:,np.newaxis,np.newaxis] * (bar_A_LL_A_UL - two_thirds * (bssn_vars.K[:,np.newaxis,np.newaxis] 
                                                                                       - ilapse[:,np.newaxis,np.newaxis] * div_shift[:,np.newaxis,np.newaxis]) * bar_A_LL))
@@ -328,11 +347,15 @@ def get_esgb_br_terms(gb_vars: GBVars, r, matter, bssn_vars, d1, d2, grid, backg
                                             + np.einsum("xij, xk, xk->xij",gamma_LL, Omega_U, d1.K))
                             - 8 * (d1Lambdadu[:,np.newaxis, np.newaxis] * d1Lambdadu[:,np.newaxis, np.newaxis] * TF_M_LL * bar_L_GB[:,np.newaxis, np.newaxis])) 
     """
-    bar_TF_S_GB_LL = ( - two_thirds * TF_Omega_LL*(bar_F[:,np.newaxis, np.newaxis] + 2 * (ilapse[:,np.newaxis, np.newaxis] * D2_lapse[:,np.newaxis, np.newaxis] - Asquared[:,np.newaxis, np.newaxis]))
+    bar_TF_S_GB_LL = ( - two_thirds * TF_Omega_LL*(bar_F[:,np.newaxis, np.newaxis] 
+                                                   + 2 * (ilapse[:,np.newaxis, np.newaxis] * D2_lapse[:,np.newaxis, np.newaxis] 
+                                                          - Asquared[:,np.newaxis, np.newaxis]))
                             - 2 * TF_M_LL*(  Trace_Omega[:,np.newaxis, np.newaxis] 
-                                                - 4*d2Lambdadduu[:,np.newaxis, np.newaxis]* (-(matter.v[:,np.newaxis, np.newaxis])*(matter.v[:,np.newaxis, np.newaxis]) + np.einsum("xij, xi, xj->x",gamma_UU,matter.d1_u,matter.d1_u)[:,np.newaxis, np.newaxis]) 
+                                                - 4*d2Lambdadduu[:,np.newaxis, np.newaxis]* (-(matter.v[:,np.newaxis, np.newaxis])*(matter.v[:,np.newaxis, np.newaxis]) 
+                                                                                             + np.einsum("xij, xi, xj->x",gamma_UU,matter.d1_u,matter.d1_u)[:,np.newaxis, np.newaxis]) 
                                                 - 4 * matter.dVdu(matter.u)[:,np.newaxis, np.newaxis] * d1Lambdadu[:,np.newaxis, np.newaxis])
-                            -  two_thirds * Trace_Omega[:,np.newaxis, np.newaxis]*(bar_F_LL - one_third * gamma_LL*(ilapse[:,np.newaxis, np.newaxis] * D2_lapse[:,np.newaxis, np.newaxis] - Asquared[:,np.newaxis, np.newaxis]))
+                            -  two_thirds * Trace_Omega[:,np.newaxis, np.newaxis]*(bar_F_LL - one_third * gamma_LL*(ilapse[:,np.newaxis, np.newaxis] * D2_lapse[:,np.newaxis, np.newaxis] 
+                                                                                                                    - Asquared[:,np.newaxis, np.newaxis]))
                             +  2 * (  np.einsum("xi, xj->xij",N_L, Omega_L) 
                                 + one_third * np.einsum("xi, xj->xij",d1.K, Omega_L) 
                                 + np.einsum("xi, xj->xij",Omega_L, N_L) 
@@ -362,5 +385,4 @@ def get_esgb_br_terms(gb_vars: GBVars, r, matter, bssn_vars, d1, d2, grid, backg
     gb_vars.bar_TraceFree_S_GB_LL[:] = bar_TF_S_GB_LL
     gb_vars.bar_S_GB[:]              = bar_S_GB
     gb_vars.Omega_LL[:]              = Omega_LL
-    gb_vars.d1Lambdadu[:]            = d1Lambdadu
 

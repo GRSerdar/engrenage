@@ -30,13 +30,19 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
     NUM_VARS = grid.NUM_VARS
     unflattened_state = current_state.reshape(NUM_VARS, -1)
     
-    if MG == True:   
+    if MG == True:    
         a = 0.2
         b = 0.4
+        """
+        a = 0
+        b = 0
+        """
+        chi0 = 0.15
         lambda_GB = 0.05
     else:
         a = 0
         b = 0
+        chi0 = 0.15
         lambda_GB = 0
 
     gauge_coefficients = (a, b)
@@ -79,8 +85,10 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
 
     # Now enforce it
     em4phi = np.exp(-4.0*bssn_vars.phi)    
+
     bar_gamma_LL = get_bar_gamma_LL(r, bssn_vars.h_LL, background)
     bar_gamma_UU = get_bar_gamma_UU(r, bssn_vars.h_LL, background)
+
     gamma_UU = em4phi[:,np.newaxis,np.newaxis] *bar_gamma_UU
 
     new_bar_gamma_LL = rescaling_factor[:,np.newaxis,np.newaxis] * bar_gamma_LL
@@ -99,9 +107,12 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
 
     # (1) Calculating all MG related quantities at once in an object, and then passing this object trough
     gb = GBVars(N)
-    # Comment out next two lines to achieve standard GR
-    get_gb_core(gb, r, bssn_vars, d1, d2, grid, background)
-    get_esgb_br_terms(gb, r, matter, bssn_vars, d1, d2, grid, background, lambda_GB, chi0=0.15)
+
+    # Adding gauss bonnet without backreaction
+    get_gb_core(gb, r, bssn_vars, d1, d2, grid, background, lambda_GB, chi0)
+
+    # Adding backreaction to the gauss bonnet terms
+    get_esgb_br_terms(gb, r, matter, bssn_vars, d1, d2, grid, background, lambda_GB, chi0)
 
     # (2) Calculating the EM tensor projections
     EMtensor = matter.get_emtensor(r, bssn_vars, background, gb)
@@ -127,15 +138,16 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
     # Modified Harmonic Gauge is implemented
     eta = 1.0
     bssn_rhs.b_U     += 0.75 * bssn_rhs.lambda_U - eta * bssn_vars.b_U
-    #bssn_rhs.shift_U += bssn_vars.b_U (no clue what this is)
+
+    bssn_rhs.shift_U += (0.75 * bssn_vars.lambda_U - eta * bssn_vars.shift_U
+                               -((a)/(1+a)) * (0.75 * bssn_vars.lambda_U
+                                               + bssn_vars.lapse[:,np.newaxis] * np.einsum("xia, xa->xi",gamma_UU, d1.lapse)))
+
 
     bssn_rhs.lapse   += - 2.0 * bssn_vars.lapse * bssn_vars.K  
     bssn_rhs.lapse   += 2*((a)/(1+a)) * bssn_vars.lapse * bssn_vars.K
 
-    bssn_rhs.shift_U += (0.75 * bssn_vars.lambda_U - eta * bssn_vars.shift_U
-                               -((a)/(1+a)) * (0.75 * bssn_vars.lambda_U
-                                       + bssn_vars.lapse[:,np.newaxis] * np.einsum("xia, xa->xi",gamma_UU, d1.lapse)))
-
+    
     ########################################################################################################
     # ADVECTION
     ########################################################################################################

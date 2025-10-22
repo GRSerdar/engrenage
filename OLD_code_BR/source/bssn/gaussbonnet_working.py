@@ -16,6 +16,12 @@ third_two = 3.0/2.0
 Gaur = []
 
 def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
+    """
+    ToDo:
+    - Make Different objects all seperate functions
+    - Do all ESGB related calculation of objects in this file
+    - Import all extra variables that are needed by changing the arguments of the functions (u, v, ...)
+    """
     r = grid.r
     N = grid.num_points
     
@@ -86,7 +92,6 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
 
     # TraceFree_M_LL #[Changed the bar_gamma_LL --> gamma_LL]
     TraceFree_M_LL = M_LL - one_third * gamma_LL * Trace_M[:, np.newaxis, np.newaxis]
-    print("TraceFree_M_LL", TraceFree_M_LL)
 
     # TraceFree_M_UU
     TraceFree_M_UU = np.einsum("xia, xjb, xab->xij",gamma_UU, gamma_UU, TraceFree_M_LL)
@@ -213,7 +218,7 @@ def compute_L_GB(bssn_vars, bssn_rhs, d1, d2, grid, background):
     barApp.append(bar_A_LL[:, ip, ip])
     '''
     ### DEBUG ###
-    return L_GB
+    return (L_GB, M_LL, N_L)
 
     ###########################################################################################################################
     ###########################################################################################################################
