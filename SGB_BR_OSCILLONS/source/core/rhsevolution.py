@@ -1,4 +1,4 @@
-#rhsevolution_MG.py
+#rhsevolution.py
 
 # python modules
 import numpy as np
@@ -7,13 +7,12 @@ import time
 # homemade source code
 from core.grid import Grid
 from bssn.tensoralgebra import *
-from bssn.bssnrhs_MG import *
+from bssn.bssnrhs_matrix import *
 from bssn.bssnvars import BSSNVars
-from bssn.ModifiedGravity import GBVars, get_gb_core, get_esgb_br_terms
 
 # function that returns the rhs for each of the field vars
 # see further details in https://github.com/GRChombo/engrenage/wiki/Useful-code-background
-def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, progress_bar, time_state, a,b, lambda_GB) :
+def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, progress_bar, time_state) :
 
     # Set to True/False for timing and tracking progress
     # This is best tested using the BH test, where only one timestep is run
@@ -29,22 +28,10 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
     N = grid.N
     NUM_VARS = grid.NUM_VARS
     unflattened_state = current_state.reshape(NUM_VARS, -1)
-    
-    chi0 = 0.15
 
-    """
-    if MG == True:    
-        a = 0.2
-        b = 0.4
-        lambda_GB = 0.05
-    else:
-        a = 0
-        b = 0
-        chi0 = 0.15
-        lambda_GB = 0
-    """
-    
-    gauge_coefficients = (a, b)
+    # Constant factors needed in Modified Gauge (for modified gravity)
+    a = 0.2
+    b = 0.4
     
     # First the metric vars in tensor form - see bssnvars.py
     bssn_vars = BSSNVars(N)
@@ -84,10 +71,8 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
 
     # Now enforce it
     em4phi = np.exp(-4.0*bssn_vars.phi)    
-
     bar_gamma_LL = get_bar_gamma_LL(r, bssn_vars.h_LL, background)
     bar_gamma_UU = get_bar_gamma_UU(r, bssn_vars.h_LL, background)
-
     gamma_UU = em4phi[:,np.newaxis,np.newaxis] *bar_gamma_UU
 
     new_bar_gamma_LL = rescaling_factor[:,np.newaxis,np.newaxis] * bar_gamma_LL
@@ -101,30 +86,23 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
         print("time for algebraic constraints is, ", check_time_2-check_time_1)    
     
     ####################################################################################################  
-    # Structured way of calling all big objects in right order.
-    ####################################################################################################
+    # Calculate matter quantities and rhs
+    
+    # Matter sources, must be defined in matter class
+    my_emtensor  = matter.get_emtensor(r, bssn_vars, d1, d2, bssn_rhs, grid,  background)
 
-    # (1) Calculating all MG related quantities at once in an object, and then passing this object trough
-    gb = GBVars(N)
-
-    # Adding gauss bonnet terms without backreaction
-    get_gb_core(gb, r, bssn_vars, d1, d2, grid, background, lambda_GB, chi0)
-
-    # Adding the back reaction correction terms
-    get_esgb_br_terms(gb, r, matter, bssn_vars, d1, d2, grid, background, lambda_GB, chi0)
-
-    # (2) Calculating the EM tensor projections
-    EMtensor = matter.get_emtensor(r, bssn_vars, background, gb)
-    # Checking the runtime for matter 
     if (timing_on) :     
         check_time_3 = time.time()
-        print("time for matter is, ", check_time_3-check_time_2) 
+        print("time for matter is, ", check_time_3-check_time_2)    
+    
+    #####################################################################################################
+    # now calculate the rhs values for bssn vars for the main grid (boundaries handled below)
 
-    # (3) Calculating evolution equations + returning (dudt, dvdt) to pass trough to matter_rhs
-    scalar_tuple = get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, gauge_coefficients, EMtensor)
+    # I am passing trough the dPidt from bssnrhs to the matter rhs, can be cleaned up later 
+    dPidt = get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, my_emtensor)
 
-    # (4) imports scalar tuple (dudt, dvdt) and gives them advection
-    matter_rhs = matter.get_matter_rhs(r, bssn_vars, d1, background, scalar_tuple)
+    # We could compute dPidt in bssnrhs and import it in matter_rhs to make it undergo advection
+    matter_rhs = matter.get_matter_rhs(r, bssn_vars, d1, d2, bssn_rhs, grid,  background, dPidt)
 
     ########################################################################################################
     # GAUGE EVOLUTION
@@ -135,16 +113,16 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
     # Modified Harmonic Gauge is implemented
     eta = 1.0
     bssn_rhs.b_U     += 0.75 * bssn_rhs.lambda_U - eta * bssn_vars.b_U
-
-    bssn_rhs.shift_U += (0.75 * bssn_vars.lambda_U - eta * bssn_vars.shift_U
-                               -((a)/(1+a)) * (0.75 * bssn_vars.lambda_U
-                                               + bssn_vars.lapse[:,np.newaxis] * np.einsum("xia, xa->xi",gamma_UU, d1.lapse)))
-
+    #bssn_rhs.shift_U += bssn_vars.b_U (no clue what this is)
 
     bssn_rhs.lapse   += - 2.0 * bssn_vars.lapse * bssn_vars.K  
     bssn_rhs.lapse   += 2*((a)/(1+a)) * bssn_vars.lapse * bssn_vars.K
 
-    
+    bssn_rhs.shift_U += (0.75 * bssn_vars.lambda_U - eta * bssn_vars.shift_U
+                               -((a)/(1+a)) * (0.75 * bssn_vars.lambda_U
+                                       + bssn_vars.lapse[:,np.newaxis] * np.einsum("xia, xa->xi",gamma_UU, d1.lapse)))
+
+
     ########################################################################################################
     # ADVECTION
     ########################################################################################################
