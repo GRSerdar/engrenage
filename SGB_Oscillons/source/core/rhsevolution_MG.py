@@ -11,10 +11,6 @@ from bssn.bssnrhs_MG import *
 from bssn.bssnvars import BSSNVars
 from bssn.ModifiedGravity import GBVars, get_gb_core, get_esgb_br_terms
 
-initial = []
-final = []
-
-
 # function that returns the rhs for each of the field vars
 # see further details in https://github.com/GRChombo/engrenage/wiki/Useful-code-background
 def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, progress_bar, time_state, a,b, lambda_GB) :
@@ -108,7 +104,7 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
     # Structured way of calling all big objects in right order.
     ####################################################################################################
 
-    # (1) Calculating all MG related quantities at once in an object, and then passing this object trough    
+    # (1) Calculating all MG related quantities at once in an object, and then passing this object trough
     gb = GBVars(N)
 
     # Adding gauss bonnet terms without backreaction
@@ -124,198 +120,11 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
         check_time_3 = time.time()
         print("time for matter is, ", check_time_3-check_time_2) 
 
-    ####################################################################################################  
-    # Calling the initial data 
-    ####################################################################################################
-
-    # TESTING 
-    # Derivatives of A_LL
-    s_times_d1_a = background.scaling_matrix[:,:,:,np.newaxis] * d1.a_LL
-    a_times_d1_s = bssn_vars.a_LL[:,:,:,np.newaxis] * background.d1_scaling_matrix
-    
-    # To deal with the scaling matrix indices being jki in stead of ijk 
-    a_times_d1_s = np.moveaxis(a_times_d1_s, 3, 1)   # xbca -> xabc
-    s_times_d1_a = np.moveaxis(s_times_d1_a, 3, 1)   # xbca -> xabc
-
-    s_times_d1_h = background.scaling_matrix[:,:,:,np.newaxis] * d1.h_LL
-    h_times_d1_s = bssn_vars.h_LL[:,:,:,np.newaxis] * background.d1_scaling_matrix
-    
-    h_times_d1_s = np.moveaxis(h_times_d1_s, 3, 1)   # xbca -> xabc
-    s_times_d1_h = np.moveaxis(s_times_d1_h, 3, 1)   # xbca -> xabc
-
-    d2_scaling_matrix = background.d2_scaling_matrix
-    #d2_scaling_matrix = np.moveaxis(d2_scaling_matrix, [3, 4], [1, 2]) # xijkl -> xklij (moves the indices of the derivatives to the front)
-
-    d1_scaling_matrix = background.d1_scaling_matrix
-    #d1_scaling_matrix = np.moveaxis(d1_scaling_matrix, 3, 1) # xbca -> xabc
-
-    d1_inverse_scaling_vector = background.d1_inverse_scaling_vector
-
-    d2_inverse_scaling_vector = background.d2_inverse_scaling_vector
-
-    Shift_U = background.inverse_scaling_vector * bssn_vars.shift_U #Captial Shift
-
-    d1_Shift_U = (background.d1_inverse_scaling_vector * bssn_vars.shift_U[:,:,np.newaxis]  
-                     + d1.shift_U * background.inverse_scaling_vector[:,:,np.newaxis]) 
-
-
-    ir, it, ip = i_r, i_t, i_p
-
-    valer = len(initial)
-    initial.append([])
-
-    chi_0 = np.exp(-4.0*bssn_vars.phi)
-    initial[valer].append([])
-    initial[valer][len(initial[valer])-1].append(chi_0.tolist())
-
-
-    gamma = background.hat_gamma_LL +  (background.scaling_matrix  * bssn_vars.h_LL)
-    initial[valer].append([])
-    initial[valer][len(initial[valer])-1].append(gamma.tolist())
-
-    """
-    hrr = bssn_vars.h_LL[:,ir,ir]
-    initial[valer].append([])
-    initial[valer][len(initial[valer])-1].append(hrr.tolist())
-
-    htt = bssn_vars.h_LL[:,it,it]
-    initial[valer].append([])
-    initial[valer][len(initial[valer])-1].append(htt.tolist())
-
-    hpp = bssn_vars.h_LL[:,ip,ip]
-    initial[valer].append([])
-    initial[valer][len(initial[valer])-1].append(hpp.tolist())
-    """
-
-
-    initial[valer].append([])
-    initial[valer][len(initial[valer])-1].append(bssn_vars.K.tolist())
-
-    
-    aa = background.scaling_matrix * (bssn_vars.a_LL)
-    initial[valer].append([])
-    initial[valer][len(initial[valer])-1].append(aa.tolist())
-    
-    """
-    att = bssn_vars.a_LL[:,it,it]
-    initial[valer].append([])
-    initial[valer][len(initial[valer])-1].append(att.tolist())
-
-    app = bssn_vars.a_LL[:,ip,ip]
-    initial[valer].append([])
-    initial[valer][len(initial[valer])-1].append(app.tolist())
-    """
-
-    Lambdar = (background.inverse_scaling_vector * bssn_vars.lambda_U)#[:,ir]
-    initial[valer].append([])
-    initial[valer][len(initial[valer])-1].append(Lambdar.tolist())
-
-    Shiftr = Shift_U#[:,ir]
-    initial[valer].append([])
-    initial[valer][len(initial[valer])-1].append(Shiftr.tolist())
-
-    lapse = bssn_vars.lapse
-    initial[valer].append([])
-    initial[valer][len(initial[valer])-1].append(lapse.tolist())
-
-    scalarfield = matter.u
-    initial[valer].append([])
-    initial[valer][len(initial[valer])-1].append(scalarfield.tolist()) 
-
-    pifield = matter.v  
-    initial[valer].append([])
-    initial[valer][len(initial[valer])-1].append(pifield.tolist()) 
-    
-    d1chi = -4 * chi_0[:,np.newaxis]* d1.phi
-    initial[valer].append([])
-    initial[valer][len(initial[valer])-1].append(d1chi.tolist()) 
-
-    d1u = matter.d1_u
-    initial[valer].append([])
-    initial[valer][len(initial[valer])-1].append(d1u.tolist())
-
-    d1v = matter.d1_v
-    initial[valer].append([])
-    initial[valer][len(initial[valer])-1].append(d1v.tolist())
-
-    d1lapse = d1.lapse
-    initial[valer].append([])
-    initial[valer][len(initial[valer])-1].append(d1lapse.tolist())
-
-
-    d1K = d1.K
-    initial[valer].append([])
-    initial[valer][len(initial[valer])-1].append(d1K.tolist())
-
-    d1gamma = background.d1_hat_gamma_LL + h_times_d1_s + s_times_d1_h
-    initial[valer].append([])
-    initial[valer][len(initial[valer])-1].append(d1gamma.tolist())
-
-    d1A = a_times_d1_s + s_times_d1_a
-    initial[valer].append([])
-    initial[valer][len(initial[valer])-1].append(d1A.tolist())
-
-    #dLambda = background.d1_inverse_scaling_vector * bssn_vars.lambda_U + background.inverse_scaling_vector * d1.lambda_U
-    # Are the shapes mathced correctly ? 
-    dLambda = background.d1_inverse_scaling_vector * bssn_vars.lambda_U[:, np.newaxis, :] + background.inverse_scaling_vector[:, np.newaxis, :] * d1.lambda_U
-    initial[valer].append([])
-    initial[valer][len(initial[valer])-1].append(dLambda.tolist())
-
-    dShift = d1_Shift_U
-    initial[valer].append([])
-    initial[valer][len(initial[valer])-1].append(dShift.tolist())
-
-    d2chi = chi_0[:,np.newaxis, np.newaxis]*( 16 * d1.phi[:,np.newaxis] * d1.phi[:,np.newaxis] - 4*d2.phi)
-    initial[valer].append([])
-    initial[valer][len(initial[valer])-1].append(d2chi.tolist())
-
-    d2u = matter.d2_u
-    initial[valer].append([])
-    initial[valer][len(initial[valer])-1].append(d2u.tolist())
-
-    d2lapse = d2.lapse
-    initial[valer].append([])
-    initial[valer][len(initial[valer])-1].append(d2lapse.tolist())
-    """
-    d2Gamma = (background.d2_hat_gamma_LL + d2_scaling_matrix * bssn_vars.h_LL 
-               + 2 *(background.d1_scaling_matrix * d1.h_LL)
-               + background.scaling_matrix * (d2.h_LL)) ## object shape matching???
-    """
-
-    d2Gamma = (background.d2_hat_gamma_LL
-           + d2_scaling_matrix * bssn_vars.h_LL[:, :, :, np.newaxis, np.newaxis]
-           + 2 * (background.d1_scaling_matrix[:,:,:,np.newaxis] * d1.h_LL[:,:,:,np.newaxis])
-           + background.scaling_matrix[:, :, :, np.newaxis, np.newaxis] * d2.h_LL)
-
-    initial[valer].append([])
-    initial[valer][len(initial[valer])-1].append(d2Gamma.tolist())
-
-    # Did I extend objects correctly?
-    """
-    d2Shift  = (  d2_inverse_scaling_vector * bssn_vars.shift_U[:,np.newaxis,np.newaxis]
-                + 2* (d1_inverse_scaling_vector[:,:,np.newaxis] * d1.shift_U[:,:,np.newaxis])
-                + background.inverse_scaling_matrix[:,:,np.newaxis,np.newaxis]* d2.shift_U)
-    """
-    d2Shift = (d2_inverse_scaling_vector * bssn_vars.shift_U[:, np.newaxis, np.newaxis, :] 
-           + 2 * (d1_inverse_scaling_vector[:,np.newaxis] * d1.shift_U[:,np.newaxis]) 
-           + background.inverse_scaling_vector[:, np.newaxis, np.newaxis, :] * d2.shift_U)
-    initial[valer].append([])
-    initial[valer][len(initial[valer])-1].append(d2Shift.tolist())
-
-
-    ####################################################################################################  
-    # Calling the initial data 
-    ####################################################################################################
-
-    # RHS EVOLUTION 
-
     # (3) Calculating evolution equations + returning (dudt, dvdt) to pass trough to matter_rhs
     scalar_tuple = get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, gauge_coefficients, EMtensor)
 
     # (4) imports scalar tuple (dudt, dvdt) and gives them advection
     matter_rhs = matter.get_matter_rhs(r, bssn_vars, d1, background, scalar_tuple)
-
-
 
     ########################################################################################################
     # GAUGE EVOLUTION
@@ -358,23 +167,6 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
     advec_a_LL = get_tensor_advection(r, bssn_vars.a_LL, advec.a_LL, bssn_vars.shift_U, d1.shift_U, background)
     bssn_rhs.a_LL += advec_a_LL
 
-    final.append({
-    "phi_rhs":      bssn_rhs.phi.tolist(),
-    "K_rhs":        bssn_rhs.K.tolist(),
-    "h_LL_rhs":     bssn_rhs.h_LL.tolist(),
-    #"h_LL_rhs":     (background.hat_gamma_LL + (background.scaling_matrix  * bssn_rhs.h_LL)).tolist(),
-    #"h_LL_rhs":     ((background.scaling_matrix  * bssn_rhs.h_LL)).tolist(),
-    "a_LL_rhs":     (background.scaling_matrix * bssn_rhs.a_LL).tolist(),
-    #"a_LL_rhs":     (bssn_rhs.a_LL).tolist(),
-    "lambda_U_rhs": (background.inverse_scaling_vector * bssn_rhs.lambda_U).tolist(),
-    "lapse_rhs":    bssn_rhs.lapse.tolist(),
-    "shift_U_rhs":  bssn_rhs.shift_U.tolist(),
-    "b_U_rhs":      bssn_rhs.b_U.tolist(),
-    'u': matter_rhs[0].tolist(),
-    'Pi': matter_rhs[1].tolist()
-    })
-
-
     ########################################################################################################
     ########################################################################################################
 
@@ -388,7 +180,7 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
 
     if (timing_on) :  
         check_time_4 = time.time()
-        print("time for rhs is, ", check_time_4-check_time_3)  
+        print("time for rhs is, ", check_time_4-check_time_3)    
     
     ####################################################################################################            
     # Add Kreiss Oliger dissipation which removes noise at frequency of grid resolution
