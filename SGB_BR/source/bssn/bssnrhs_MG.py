@@ -394,7 +394,6 @@ def get_bssn_rhs(bssn_rhs, r, matter, bssn_vars, d1, d2, grid, background, gb, g
     bssn_rhs.K    = dU[:,2]
     dPidt         = dU[:,3]
     
-    
     # MG case
     return (dudt, dPidt)
     

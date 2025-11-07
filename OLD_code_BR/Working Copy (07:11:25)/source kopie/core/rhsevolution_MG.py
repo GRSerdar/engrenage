@@ -166,10 +166,6 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
     
     advec_a_LL = get_tensor_advection(r, bssn_vars.a_LL, advec.a_LL, bssn_vars.shift_U, d1.shift_U, background)
     bssn_rhs.a_LL += advec_a_LL
-    
-    # Extra advection terms 
-    '''bar_div_shift = get_bar_div_shift(r, bssn_vars, d1, background)  
-    bssn_rhs.a_LL -= (2.0/3.0) * bar_div_shift[:,np.newaxis,np.newaxis] * bssn_vars.a_LL'''
 
     ########################################################################################################
     ########################################################################################################

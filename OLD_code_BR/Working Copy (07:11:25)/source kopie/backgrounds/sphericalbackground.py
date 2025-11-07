@@ -30,6 +30,10 @@ class FlatSphericalBackground:
         self.d1_scaling_matrix = self.get_d1_scaling_matrix()
         self.d2_scaling_matrix = self.get_d2_scaling_matrix()
         self.hat_gamma_LL = self.get_hat_gamma_LL()
+        # New
+        self.d1_hat_gamma_LL = self.get_d1_hat_gamma()
+        self.d2_hat_gamma_LL = self.get_d2_hat_gamma()
+        # New
         self.hat_christoffel = self.get_hat_christoffel()
         self.d1_hat_christoffel = self.get_d1_hat_christoffel()
         self.det_hat_gamma = self.get_det_hat_gamma()
@@ -113,7 +117,7 @@ class FlatSphericalBackground:
         for i in np.arange(SPACEDIM) :
             for j in np.arange(SPACEDIM) :
                 scaling_matrix[:,i,j] = scaling_vector[:,i] * scaling_vector[:,j]
-        
+                
         return scaling_matrix
     
     def get_inverse_scaling_matrix(self) :
@@ -162,8 +166,48 @@ class FlatSphericalBackground:
         hat_gamma_LL[:,i_r,i_r] = ones
         hat_gamma_LL[:,i_t,i_t] = self.r * self.r
         hat_gamma_LL[:,i_p,i_p] = self.r * self.r * sin2theta
-        
+
         return hat_gamma_LL
+    
+    def get_d1_hat_gamma(self):
+
+        d1_hat_gamma = np.zeros((self.N, SPACEDIM, SPACEDIM, SPACEDIM))
+        # ∂_r terms
+        d1_hat_gamma[:, i_r, i_t, i_t] = 2.0 * self.r
+        d1_hat_gamma[:, i_r, i_p, i_p] = 2.0 * self.r * sin2theta
+        # ∂_θ terms
+        d1_hat_gamma[:, i_t, i_p, i_p] = 2.0 * (self.r ** 2) * sintheta * costheta
+        # (No φ-dependence)
+        return d1_hat_gamma
+    
+    def get_d2_hat_gamma(self):
+
+        d2 = np.zeros((self.N, SPACEDIM, SPACEDIM, SPACEDIM, SPACEDIM))
+
+        # Convenience shorthands
+        rr, tt, pp = i_r, i_t, i_p
+        r = self.r
+        st, ct = sintheta, costheta  # provided alongside sin2theta = st**2
+
+        # γ_{θθ} = r^2  → ∂_r∂_r γ_{θθ} = 2
+        d2[:, rr, rr, tt, tt] = 2.0
+
+        # γ_{φφ} = r^2 sin^2θ
+        # ∂_r∂_r γ_{φφ} = 2 sin^2θ
+        d2[:, rr, rr, pp, pp] = 2.0 * sin2theta
+
+        # ∂_θ∂_θ γ_{φφ} = 2 r^2 (cos^2θ - sin^2θ)
+        d2[:, tt, tt, pp, pp] = 2.0 * (r**2) * (ct*ct - st*st)
+
+        # Mixed ∂_r∂_θ = ∂_θ∂_r γ_{φφ} = 4 r sinθ cosθ
+        mixed = 4.0 * r * st * ct
+        d2[:, rr, tt, pp, pp] = mixed
+        d2[:, tt, rr, pp, pp] = mixed
+
+        # No φ-derivatives (no φ-dependence), and all other components are zero.
+        return d2
+
+
     
     # christoffel symbols for the hat metric
     # See eqn (18) in Baumgarte https://arxiv.org/abs/1211.6632
