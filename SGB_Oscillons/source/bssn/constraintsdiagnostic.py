@@ -11,8 +11,11 @@ from bssn.tensoralgebra import *
 # The diagnostic function returns the Hamiltonian constraint over the grid
 # it takes in the solution of the evolution, which is the state vector at every
 # time step, and returns the spatial profile Ham(r) at each time step
-def get_constraints_diagnostic(states_over_time, t, grid: Grid, background, matter) :
+def get_constraints_diagnostic(states_over_time, t, grid: Grid, background, matter, params) :
     
+    # Modified Gravity parameters
+    lambda_GB, a, b, chi0 = params
+
     # For readability
     r = grid.r
     N = grid.num_points
@@ -44,17 +47,21 @@ def get_constraints_diagnostic(states_over_time, t, grid: Grid, background, matt
 
         gb = GBVars(N)
         # Comment out next two lines to achieve standard GR
-        get_gb_core(gb, r, bssn_vars, d1, d2, grid, background, 0.05, chi0=0.15)
-        get_esgb_br_terms(gb, r, matter, bssn_vars, d1, d2, grid, background, 0.05, chi0=0.15)
+        get_gb_core(gb, r, bssn_vars, d1, d2, grid, background, lambda_GB, chi0)
+        get_esgb_br_terms(gb, r, matter, bssn_vars, d1, d2, grid, background, lambda_GB, chi0)
         
         # Calculate some useful quantities
         ########################################################
         
         em4phi = np.exp(-4.0*bssn_vars.phi)
+        e4phi  = 1.0/em4phi
 
         # (unscaled) \bar\gamma_ij and \bar\gamma^ij
         bar_gamma_LL = get_bar_gamma_LL(r, bssn_vars.h_LL, background)
         bar_gamma_UU = get_bar_gamma_UU(r, bssn_vars.h_LL, background)
+
+        gamma_UU = em4phi[:,np.newaxis,np.newaxis] *bar_gamma_UU
+        gamma_LL = e4phi[:,np.newaxis,np.newaxis] * bar_gamma_LL
 
         # The connections Delta^i, Delta^i_jk and Delta_ijk
         Delta_U, Delta_ULL, Delta_LLL  = get_tensor_connections(r, bssn_vars.h_LL, d1.h_LL, background)    
@@ -82,6 +89,9 @@ def get_constraints_diagnostic(states_over_time, t, grid: Grid, background, matt
         # my_emtensor = matter.get_emtensor(r, bssn_vars, background)
 
         my_emtensor = matter.get_emtensor(r, bssn_vars, background, gb)
+        
+        rho_GB = gb.rho_GB
+        S_GB_L = gb.S_GB_L
 
         # End of: Calculate some useful quantities, now start diagnostic
         #################################################################
@@ -92,7 +102,7 @@ def get_constraints_diagnostic(states_over_time, t, grid: Grid, background, matt
                                    - 8.0 * np.einsum('xij,xi,xj->x', bar_gamma_UU, d1.phi, d1.phi)
                                    - 8.0 * np.einsum('xij,xij->x', bar_gamma_UU, d2.phi)
                                    + 8.0 * np.einsum('xij,xkij,xk->x', bar_gamma_UU, bar_chris, d1.phi))
-                         - 2.0 * eight_pi_G * my_emtensor.rho)
+                         - 2.0 * eight_pi_G * (my_emtensor.rho + rho_GB))
 
 
         # Get the Mom constraint eqn (47) of NRPy+ https://arxiv.org/abs/1712.07658
@@ -103,7 +113,8 @@ def get_constraints_diagnostic(states_over_time, t, grid: Grid, background, matt
                             - np.einsum('xil,xjm,xnjm,xln->xi', bar_gamma_UU, bar_gamma_UU, bar_chris, A_LL)
                             + 6.0 * np.einsum('xij,xj->xi', A_UU, d1.phi) 
                             - two_thirds * np.einsum('xij,xj->xi', bar_gamma_UU, d1.K)
-                            - eight_pi_G * np.einsum('xij,xj->xi', bar_gamma_UU, my_emtensor.Si))
+                            - eight_pi_G * np.einsum('xij,xj->xi', bar_gamma_UU, my_emtensor.Si)
+                            - eight_pi_G * np.einsum('xij,xj->xi', bar_gamma_UU, S_GB_L))
 
         # Fix endpoints
         grid.fill_inner_boundary_single_variable(Ham[i,:])

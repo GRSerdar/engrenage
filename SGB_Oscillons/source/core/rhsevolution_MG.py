@@ -14,6 +14,9 @@ from bssn.ModifiedGravity import GBVars, get_gb_core, get_esgb_br_terms
 # function that returns the rhs for each of the field vars
 # see further details in https://github.com/GRChombo/engrenage/wiki/Useful-code-background
 def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, progress_bar, time_state, a,b, lambda_GB) :
+    
+    # Debugging
+    #print("RHS called at t =", t_i, flush=True)
 
     # Set to True/False for timing and tracking progress
     # This is best tested using the BH test, where only one timestep is run
@@ -29,7 +32,19 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
     N = grid.N
     NUM_VARS = grid.NUM_VARS
     unflattened_state = current_state.reshape(NUM_VARS, -1)
-    
+    """
+    state = current_state.reshape(grid.NUM_VARS, -1)
+    # sanity check key fields at t=0
+    if t_i == 0.0:
+        # unpack in the SAME order as initial_state
+        (phi, hrr, htt, hpp,
+         K, arr, att, app,
+         lambdar, shiftr, br, lapse,
+         u, v) = state
+
+        print("  lapse: min =", lapse.min(), "max =", lapse.max())
+        print("  phi:   min =", phi.min(), "max =", phi.max())
+    """
     chi0 = 0.15
 
     """
@@ -232,4 +247,12 @@ def get_rhs(t_i, current_state: np.ndarray, grid: Grid, background, matter, prog
     #################################################################################################### 
     # Finally return the rhs, flattened into one long vector
     x=1
+    """
+
+    #### DEBUG ####
+    rhs_flat = rhs_state.reshape(-1)
+    rhs_norm = np.linalg.norm(rhs_flat)
+    print("  ||rhs|| =", rhs_norm)
+    print("  finite? ", np.all(np.isfinite(rhs_flat)))
+    """
     return rhs_state.reshape(-1)

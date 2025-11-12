@@ -217,6 +217,7 @@ def get_esgb_br_terms(gb_vars: GBVars, r, matter, bssn_vars, d1, d2, grid, backg
     But rather not involving time derivatives of pape A or pape K
     I agree the "barred" notation can cause confusion 
     """
+    
     assert getattr(matter, "matter_vars_set", False), "Matter vars not set (call matter.set_matter_vars(...) first)."
     
     one_sixth   = 1.0/6.0

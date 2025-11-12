@@ -14,7 +14,7 @@ two_thirds = 2.0/3.0
 four_thirds = 4.0/3.0
 
 #eight_pi_G = 8.0 * np.pi * 1.0 # put this to zero to 'turn off' backreaction
-eight_pi_G = 1/2 # Only for testing!!!!!!!
+eight_pi_G = 1 # Only for testing!!!!!!!
 
 # Kronecker delta \delta_ij (i.e. identity matrix)
 delta_ij = np.identity(SPACEDIM)
