@@ -16,7 +16,7 @@ from matter.scalarmatter_MG import *
 from initialdata.constraintsolver import *
 from bssn.bssnvars import BSSNVars
 
-def get_initial_state(grid: Grid, background, parameters, scalar_matter) :
+def get_initial_state(grid: Grid, background, parameters, scalar_matter, bump_amplitude) :
     
     assert grid.NUM_VARS == 14, "NUM_VARS not correct for bssn + scalar field"
     
@@ -82,13 +82,13 @@ def get_initial_state(grid: Grid, background, parameters, scalar_matter) :
         out[mask] = A*(x-rl)**2*(x-ru)**2*np.exp(-1.0/(x-rl) - 1.0/(ru-x))
         return out
     
-    bumper = (1e-4, 6, 14)
+    bumper = (bump_amplitude, 6, 14)
 
     A   = bumper[0]
     rl  = bumper[1]
     ru  = bumper[2]
-    u[:] = 0
-    v[:] += bump(r, A, rl, ru)   
+    v[:] = 0
+    u[:] += bump(r, A, rl, ru)   
     #v[:] = 0
 
     dudr = Abubble / np.cosh(r - Rbubble) / np.cosh(r - Rbubble)

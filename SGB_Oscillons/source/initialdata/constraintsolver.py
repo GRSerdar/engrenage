@@ -2,6 +2,8 @@ import numpy as np
 from scipy.integrate import solve_ivp
 from scipy.interpolate import CubicSpline
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+
 
 # import modified gravity objects
 from bssn.ModifiedGravity import GBVars, get_gb_core, get_esgb_br_terms
@@ -84,7 +86,7 @@ class CTTKBHConstraintSolver :
         error = 10.0
         #tol = 1.0e-2
         tol = 1.0e-3
-        max_iter = 1000
+        max_iter = 15
         iteration = 0
         while ((error > tol) and (iteration < max_iter)):
             # Because the convergence is oscillatory, best to only add a fraction of the correction each time
@@ -105,6 +107,13 @@ class CTTKBHConstraintSolver :
             error = np.linalg.norm(Ham) + np.linalg.norm(Mom)
             iteration = iteration + 1
             #print("error is ", error, " after ", iteration)
+            color = cm.viridis(iteration / max_iter)   # Nmax = total iterations you expect
+            Ham = self.get_Ham()
+            Mom = self.get_Mom()
+            #plt.plot(self.R, Ham, '-',color=color, label=f"{iteration}")
+            #plt.plot(self.R, Mom, '--',color=color, label=f"{iteration}")
+            #plt.legend(loc='best')
+            #plt.grid()
         
         print("error is: ", error, " after iter: ", iteration)
  
@@ -123,6 +132,7 @@ class CTTKBHConstraintSolver :
         self.K = self.K0 + deltaK 
 
         # Plot to check internal measure of constraints
+        """
         Ham = self.get_Ham()
         Mom = self.get_Mom()
         plt.plot(self.R, Ham, '-', label="Ham")
@@ -130,6 +140,7 @@ class CTTKBHConstraintSolver :
         plt.legend(loc='best')
         plt.ylim(-1.0, 1.0)
         plt.grid()
+        """
         
         # Convert quantities into the evolution vars
         psi4_r = self.psi **4.0
