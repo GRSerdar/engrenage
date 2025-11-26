@@ -82,13 +82,14 @@ def get_initial_state(grid: Grid, background, parameters, scalar_matter, bump_am
         out[mask] = A*(x-rl)**2*(x-ru)**2*np.exp(-1.0/(x-rl) - 1.0/(ru-x))
         return out
     
-    bumper = (bump_amplitude, 6, 14)
-
+    #bumper = (bump_amplitude, 6, 14)
+    bumper = (bump_amplitude, 4, 14)
     A   = bumper[0]
     rl  = bumper[1]
     ru  = bumper[2]
     v[:] = 0
-    u[:] += bump(r, A, rl, ru)   
+    u[:] += bump(r, A, rl, ru) 
+    #u[:] += bump(r, A, 10, 14)    # Extra bump ? 
     #v[:] = 0
 
     dudr = Abubble / np.cosh(r - Rbubble) / np.cosh(r - Rbubble)

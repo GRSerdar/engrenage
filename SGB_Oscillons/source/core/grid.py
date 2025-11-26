@@ -37,12 +37,13 @@ class Grid:
         self.fill_inner_boundary(state, indices)
         self.fill_outer_boundary(state, indices)
 
+    ### Current functions for inner and outter boundaries will be repleced with ones that have periodic boundary conditions only 
+    ### Only on the u and v field, to mimic cosmological boundary conditions.
+    """
     def fill_inner_boundary(self, state, indices=None):
-        
-        """Fill the inner boundary of the grid.
-        There are two possibilities, whether the spacing is full extent or not.
-        (non-negative r or r from -r_max to r_max)
-        """
+        #Fill the inner boundary of the grid.
+        #There are two possibilities, whether the spacing is full extent or not.
+        #(non-negative r or r from -r_max to r_max)
 
         # Default to all indices if none were specified
         if (indices == None) :
@@ -59,11 +60,10 @@ class Grid:
             self.fill_outer_boundary(state[..., ::-1], indices)
 
     def fill_inner_boundary_single_variable(self, state, parity=1):
-        """Fill the inner boundary of the grid.
+        #Fill the inner boundary of the grid.
+        #There are two possibilities, whether the spacing is full extent or not.
+        #(non-negative r or r from -r_max to r_max)
 
-        There are two possibilities, whether the spacing is full extent or not.
-        (non-negative r or r from -r_max to r_max)
-        """
         if self.extent == SpacingExtent.HALF:
             # If the r coordinate is positive, fill inner boundary with parity.
             state[:NUM_GHOSTS] = parity * state[2 * NUM_GHOSTS - 1: NUM_GHOSTS - 1: -1]
@@ -88,6 +88,9 @@ class Grid:
             self.ASYMP_OFFSET[indices, None]
             + b[..., None] * self.r[-NUM_GHOSTS:] ** self.ASYMP_POWER[indices, None]
         )
+        # Here you have to make another function or modify this one, only for the fields u [index=12 ] and v [index = 13] and see where it is called
+        # and make--> outer_state[-NUM_GHOSTS:] = state[idx]
+        # CHANGE IT HERE !!!
 
     def fill_outer_boundary_single_variable(self, state, asymp_power=0, asymp_offset=0):
         # For outer boundaries, we assume a law of the form: a + b * r**n
@@ -98,7 +101,91 @@ class Grid:
         b = (state[idx] - asymp_offset) / self.r[idx] ** asymp_power
 
         outer_state[-NUM_GHOSTS:] = asymp_offset + b * self.r[-NUM_GHOSTS:] ** asymp_power
+    """
+    # These are the new boundary condition functions with periodic BC for u and v
+    def fill_inner_boundary(self, state, indices=None):
+        """
+        Inner boundary:
+        - All variables: original behaviour (parity or full-extent mirror).
+        - u, v (12, 13): then overridden with periodic BC.
+        """
+        if indices is None:
+            indices = self.ALL_INDICES
+
+        # 1. Original behaviour for all selected variables
+        if self.extent == SpacingExtent.HALF:
+            state[indices, :NUM_GHOSTS] = (
+                self.PARITY[indices, None]
+                * state[indices, 2 * NUM_GHOSTS - 1 : NUM_GHOSTS - 1 : -1]
+            )
+        else:
+            # full extent: inner boundary behaves like outer boundary on reversed array
+            self.fill_outer_boundary(state[..., ::-1], indices)
         
+        """
+        NOT APPLICABLE HERE (PBC)
+        # 2. Override u and v with periodic BC (if they are in indices)
+        PURE  PERIODIC BOUNDARY CONDITION
+        for var in (12, 13):
+            if var in indices:
+                state[var, :NUM_GHOSTS] = state[var, -2 * NUM_GHOSTS : -NUM_GHOSTS]
+
+        """
+
+    def fill_outer_boundary(self, state, indices=None):
+        """
+        Outer boundary:
+        - All variables: original asymptotic a + b r^n.
+        - u, v (12, 13): then overridden with periodic BC.
+        """
+        if indices is None:
+            indices = self.ALL_INDICES
+
+        idx = -NUM_GHOSTS - 1
+        outer_state = state[:, -NUM_GHOSTS:]
+
+        # 1. Original asymptotic behaviour for all selected variables
+        b = (
+            (state[indices, idx] - self.ASYMP_OFFSET[indices])
+            / (self.r[idx] ** self.ASYMP_POWER[indices])
+        )
+        outer_state[indices, :] = (
+            self.ASYMP_OFFSET[indices, None]
+            + b[..., None] * self.r[-NUM_GHOSTS:] ** self.ASYMP_POWER[indices, None]
+        )
+
+        # 2. Override u and v with periodic BC (if they are in indices)
+        # Freezes the value of the field over all outer ghost cells.
+        for var in (12, 13):
+            if var in indices:
+                state[var, -NUM_GHOSTS:] = state[var, -NUM_GHOSTS-1]
+
+
+
+    def fill_inner_boundary_single_variable(self, state, parity=1):
+        #Fill the inner boundary of the grid.
+        #There are two possibilities, whether the spacing is full extent or not.
+        #(non-negative r or r from -r_max to r_max)
+
+        if self.extent == SpacingExtent.HALF:
+            # If the r coordinate is positive, fill inner boundary with parity.
+            state[:NUM_GHOSTS] = parity * state[2 * NUM_GHOSTS - 1: NUM_GHOSTS - 1: -1]
+        else:
+            # If the r coordinate goes from -r_max to r_max, fill the inner boundary like the outer one.
+            self.fill_outer_boundary_single_variable(state[::-1])
+
+
+    def fill_outer_boundary_single_variable(self, state, asymp_power=0, asymp_offset=0):
+        # For outer boundaries, we assume a law of the form: a + b * r**n
+        # "a" is ASYMP_OFFSET and "n" is ASYMP_POWER, "b" is to be determined
+        # on last point before ghost points.
+        idx = -NUM_GHOSTS - 1
+        outer_state = state[:, -NUM_GHOSTS:]
+        b = (state[idx] - asymp_offset) / self.r[idx] ** asymp_power
+
+        outer_state[-NUM_GHOSTS:] = asymp_offset + b * self.r[-NUM_GHOSTS:] ** asymp_power
+
+    
     def get_first_derivative(self, array: np.ndarray, indices=None):
         """Compute the first derivative of an array for the specified indices."""
         dr_array = np.zeros_like(array)

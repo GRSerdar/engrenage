@@ -85,8 +85,8 @@ class CTTKBHConstraintSolver :
         # Solve for the constraint vars
         error = 10.0
         #tol = 1.0e-2
-        tol = 1.0e-3
-        max_iter = 15
+        tol = 1.0e-4
+        max_iter = 50
         iteration = 0
         while ((error > tol) and (iteration < max_iter)):
             # Because the convergence is oscillatory, best to only add a fraction of the correction each time
